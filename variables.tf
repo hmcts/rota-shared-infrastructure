@@ -24,5 +24,5 @@ variable "location" {
 variable "product" {}
 
 variable "component" {
-  default = ""
+  default = "shared-infra"
 }
