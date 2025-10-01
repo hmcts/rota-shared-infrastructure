@@ -11,7 +11,7 @@ module "postgresql" {
   product       = var.product
   component     = var.component
   resource_group_name = azurerm_resource_group.rg.name
-  business_area = "sds" # sds or cft
+  business_area = "cft" # sds or cft
   subnet_suffix = "expanded"
 
   pgsql_databases = [
