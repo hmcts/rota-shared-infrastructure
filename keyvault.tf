@@ -1,6 +1,6 @@
 module "key_vault" {
   source              = "git@github.com:hmcts/cnp-module-key-vault?ref=master"
-  name                = "${var.product}-${var.env}"
+  name                = "${var.product}-shared-${var.env}"
   product             = var.product
   env                 = var.env
   object_id           = var.jenkins_AAD_objectId
