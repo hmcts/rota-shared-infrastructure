@@ -3,7 +3,7 @@ resource "azurerm_key_vault_secret" "application_insights_connection_string" {
   value        = module.application_insights.connection_string
   key_vault_id = module.key_vault.key_vault_id
 
-  tags = var.common_tags
+  tags = module.tags.common_tags
 }
 
 resource "azurerm_key_vault_secret" "application_insights_instrumentation_key" {
@@ -11,7 +11,7 @@ resource "azurerm_key_vault_secret" "application_insights_instrumentation_key" {
   value        = module.application_insights.instrumentation_key
   key_vault_id = module.key_vault.key_vault_id
 
-  tags = var.common_tags
+  tags = module.tags.common_tags
 }
 
 resource "azurerm_key_vault_secret" "postgresql_admin_username" {
@@ -19,7 +19,7 @@ resource "azurerm_key_vault_secret" "postgresql_admin_username" {
   value        = module.postgresql.username
   key_vault_id = module.key_vault.key_vault_id
 
-  tags = var.common_tags
+  tags = module.tags.common_tags
 }
 
 resource "azurerm_key_vault_secret" "postgresql_admin_password" {
@@ -27,7 +27,7 @@ resource "azurerm_key_vault_secret" "postgresql_admin_password" {
   value        = module.postgresql.password
   key_vault_id = module.key_vault.key_vault_id
 
-  tags = var.common_tags
+  tags = module.tags.common_tags
 }
 
 resource "azurerm_key_vault_secret" "postgresql_fqdn" {
@@ -35,5 +35,5 @@ resource "azurerm_key_vault_secret" "postgresql_fqdn" {
   value        = module.postgresql.fqdn
   key_vault_id = module.key_vault.key_vault_id
 
-  tags = var.common_tags
+  tags = module.tags.common_tags
 }
