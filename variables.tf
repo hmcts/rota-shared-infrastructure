@@ -5,7 +5,13 @@ variable "postgres_geo_redundant_backups" {
 variable "aks_subscription_id" {} # provided by the Jenkins library, ADO users will need to specify this
 
 variable "common_tags" {
-  type = map(string)
+  type    = map(string)
+  default = {}
+}
+
+variable "built_from" {
+  description = "Repository URL or name used for tagging resources"
+  default     = "https://github.com/hmcts/rota-shared-infrastructure"
 }
 
 variable "env" {
