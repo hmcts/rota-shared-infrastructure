@@ -1,5 +1,6 @@
 module "key_vault" {
-  source                  = "git@github.com:hmcts/cnp-module-key-vault?ref=master"
+  # Pin to a revision compatible with this repository's AzureRM 4.34 provider constraint.
+  source                  = "git@github.com:hmcts/cnp-module-key-vault?ref=7fa53b9e5fbd2710a6c835101fe37d7dbe8c4067"
   name                    = "${var.product}-shared-${var.env}"
   product                 = var.product
   env                     = var.env

@@ -15,3 +15,15 @@ output "application_insights_connection_string" {
   value     = module.application_insights.connection_string
   sensitive = true
 }
+
+output "key_vault_name" {
+  value = module.key_vault.key_vault_name
+}
+
+output "key_vault_id" {
+  value = module.key_vault.key_vault_id
+}
+
+output "postgresql_fqdn" {
+  value = module.postgresql.fqdn
+}

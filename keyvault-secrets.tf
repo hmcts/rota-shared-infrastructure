@@ -37,3 +37,16 @@ resource "azurerm_key_vault_secret" "postgresql_fqdn" {
 
   tags = local.merged_common_tags
 }
+
+resource "random_password" "optimiser_hmac_key" {
+  length  = 64
+  special = false
+}
+
+resource "azurerm_key_vault_secret" "optimiser_hmac_key" {
+  name         = "optimiser-hmac-key"
+  value        = random_password.optimiser_hmac_key.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
