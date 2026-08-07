@@ -24,27 +24,27 @@ locals {
       max_prepared_transactions             = "0"
       random_page_cost                      = "1.1"
       work_mem                              = "131072"
-      "azure.extensions"         = "PG_BUFFERCACHE,PG_STAT_STATEMENTS"
-      "logfiles.download_enable" = var.pgsql_logfiles_download_enable
-      "logfiles.retention_days"  = "7"
+      "azure.extensions"                    = "PG_BUFFERCACHE,PG_STAT_STATEMENTS"
+      "logfiles.download_enable"            = var.pgsql_logfiles_download_enable
+      "logfiles.retention_days"             = "7"
     },
     local.pgsql_query_diagnostics_configuration
   )
 
   dopdb_postgresql_configuration = merge(
     {
-      backslash_quote                       = "safe_encoding"
-      idle_in_transaction_session_timeout   = "1800000"
-      log_duration                          = "off"
-      log_error_verbosity                   = "default"
-      log_lock_waits                        = "on"
-      log_min_duration_statement            = "15000"
-      log_min_messages                      = "warning"
-      max_connections                       = "256"
-      max_prepared_transactions             = "0"
-      "azure.extensions"         = "PG_BUFFERCACHE,PG_STAT_STATEMENTS"
-      "logfiles.download_enable" = var.pgsql_logfiles_download_enable
-      "logfiles.retention_days"  = "7"
+      backslash_quote                     = "safe_encoding"
+      idle_in_transaction_session_timeout = "1800000"
+      log_duration                        = "off"
+      log_error_verbosity                 = "default"
+      log_lock_waits                      = "on"
+      log_min_duration_statement          = "15000"
+      log_min_messages                    = "warning"
+      max_connections                     = "256"
+      max_prepared_transactions           = "0"
+      "azure.extensions"                  = "PG_BUFFERCACHE,PG_STAT_STATEMENTS"
+      "logfiles.download_enable"          = var.pgsql_logfiles_download_enable
+      "logfiles.retention_days"           = "7"
     },
     local.pgsql_query_diagnostics_configuration
   )
