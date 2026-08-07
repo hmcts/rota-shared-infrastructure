@@ -68,7 +68,7 @@ module "postgresql_dapdb" {
 
   pgsql_databases = [
     {
-      name : "rota"
+      name : "mojdb"
     }
   ]
   pgsql_sku             = var.dapdb_pgsql_sku
@@ -113,7 +113,10 @@ module "postgresql_dopdb" {
 
   pgsql_databases = [
     {
-      name : "rota"
+      name : "optimisationdb"
+    },
+    {
+      name : "persistdb"
     }
   ]
   pgsql_sku             = var.dopdb_pgsql_sku
