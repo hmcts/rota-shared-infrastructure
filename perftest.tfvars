@@ -1,5 +1,3 @@
-postgres_geo_redundant_backups = true
-
 dapdb_pgsql_sku          = "GP_Standard_D8ds_v5"
 dapdb_pgsql_storage_mb   = 524288
 dapdb_pgsql_storage_tier = "P20"

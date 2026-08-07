@@ -25,5 +25,22 @@ output "key_vault_id" {
 }
 
 output "postgresql_fqdn" {
-  value = module.postgresql.fqdn
+  description = "Deprecated compatibility output for the DAPDB PostgreSQL server."
+  value       = module.postgresql_dapdb.fqdn
+}
+
+output "dapdb_postgresql_fqdn" {
+  value = module.postgresql_dapdb.fqdn
+}
+
+output "dapdb_postgresql_instance_id" {
+  value = module.postgresql_dapdb.instance_id
+}
+
+output "dopdb_postgresql_fqdn" {
+  value = module.postgresql_dopdb.fqdn
+}
+
+output "dopdb_postgresql_instance_id" {
+  value = module.postgresql_dopdb.instance_id
 }
