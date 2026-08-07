@@ -16,7 +16,7 @@ resource "azurerm_key_vault_secret" "application_insights_instrumentation_key" {
 
 resource "azurerm_key_vault_secret" "postgresql_admin_username" {
   name         = "postgresql-admin-username"
-  value        = module.postgresql.username
+  value        = module.postgresql_dapdb.username
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
@@ -24,7 +24,7 @@ resource "azurerm_key_vault_secret" "postgresql_admin_username" {
 
 resource "azurerm_key_vault_secret" "postgresql_admin_password" {
   name         = "postgresql-admin-password"
-  value        = module.postgresql.password
+  value        = module.postgresql_dapdb.password
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
@@ -32,7 +32,55 @@ resource "azurerm_key_vault_secret" "postgresql_admin_password" {
 
 resource "azurerm_key_vault_secret" "postgresql_fqdn" {
   name         = "postgresql-fqdn"
-  value        = module.postgresql.fqdn
+  value        = module.postgresql_dapdb.fqdn
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "dapdb_postgresql_admin_username" {
+  name         = "dapdb-postgresql-admin-username"
+  value        = module.postgresql_dapdb.username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "dapdb_postgresql_admin_password" {
+  name         = "dapdb-postgresql-admin-password"
+  value        = module.postgresql_dapdb.password
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "dapdb_postgresql_fqdn" {
+  name         = "dapdb-postgresql-fqdn"
+  value        = module.postgresql_dapdb.fqdn
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "dopdb_postgresql_admin_username" {
+  name         = "dopdb-postgresql-admin-username"
+  value        = module.postgresql_dopdb.username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "dopdb_postgresql_admin_password" {
+  name         = "dopdb-postgresql-admin-password"
+  value        = module.postgresql_dopdb.password
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "dopdb_postgresql_fqdn" {
+  name         = "dopdb-postgresql-fqdn"
+  value        = module.postgresql_dopdb.fqdn
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
