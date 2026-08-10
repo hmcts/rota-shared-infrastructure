@@ -24,9 +24,8 @@ The DAPDB and DOPDB servers default to the development specification. Environmen
 is applied by setting the PostgreSQL variables in an environment's `<env>.tfvars` file, following the
 standard HMCTS pipeline convention. `prod.tfvars`, `perftest.tfvars` and `aat.tfvars` (staging) supply the
 full production sizing, high availability, retention and diagnostics values. `demo.tfvars` uses the
-production sizing but with high availability disabled. `ithc.tfvars` runs both servers on a 2-core SKU
-(`GP_Standard_D2ds_v5`). Environments without an override file (`dev`, `sandbox`) use the development
-defaults declared in `variables.tf`.
+production sizing but with high availability disabled. Environments without an override file (`dev`,
+`sandbox`, `ithc`) use the development defaults declared in `variables.tf`.
 
 The existing generic `postgresql-*` Key Vault secrets and `postgresql_fqdn` output now refer to
 DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` secrets are also
