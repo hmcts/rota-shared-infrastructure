@@ -44,3 +44,11 @@ output "dopdb_postgresql_fqdn" {
 output "dopdb_postgresql_instance_id" {
   value = module.postgresql_dopdb.instance_id
 }
+
+output "storage_account_name" {
+  value = module.blobstore.storageaccount_name
+}
+
+output "storage_account_id" {
+  value = module.blobstore.storageaccount_id
+}
