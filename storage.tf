@@ -9,12 +9,11 @@ module "blobstore" {
   account_tier             = "Standard"
   account_replication_type = var.postgres_geo_redundant_backups ? "GRS" : "LRS"
 
-  containers = [
-    {
-      name        = "anonymised-db-dumps"
-      access_type = "private"
-    }
-  ]
-
   common_tags = local.merged_common_tags
+}
+
+resource "azurerm_storage_container" "anonymised_db_dumps" {
+  name                  = "anonymised-db-dumps"
+  storage_account_id    = module.blobstore.storageaccount_id
+  container_access_type = "private"
 }
