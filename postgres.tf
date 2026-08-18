@@ -71,7 +71,7 @@ module "postgresql_dapdb" {
 
   pgsql_databases = [
     {
-      name                      : "mojdb"
+      name : "mojdb"
       schemas_for_reader_access : ["public"]
       schemas_for_writer_access : ["public"]
     }
@@ -121,7 +121,7 @@ module "postgresql_dopdb" {
 
   pgsql_databases = [
     {
-      name                      : "optimiserdb"
+      name : "optimiserdb"
       schemas_for_reader_access : ["public"]
       schemas_for_writer_access : ["public"]
     }
