@@ -66,9 +66,14 @@ module "postgresql_dapdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
+  enable_read_only_group_access = true
+  enable_write_group_access     = true
+
   pgsql_databases = [
     {
       name : "mojdb"
+      schemas_for_reader_access : ["public"]
+      schemas_for_writer_access : ["public"]
     }
   ]
   pgsql_sku             = var.dapdb_pgsql_sku
@@ -111,12 +116,14 @@ module "postgresql_dopdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
+  enable_read_only_group_access = true
+  enable_write_group_access     = true
+
   pgsql_databases = [
     {
-      name : "optimisationdb"
-    },
-    {
-      name : "persistdb"
+      name : "optimiserdb"
+      schemas_for_reader_access : ["public"]
+      schemas_for_writer_access : ["public"]
     }
   ]
   pgsql_sku             = var.dopdb_pgsql_sku
