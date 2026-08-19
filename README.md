@@ -30,13 +30,24 @@ The existing generic `postgresql-*` Key Vault secrets and `postgresql_fqdn` outp
 DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` secrets are also
 created.
 
+## PostgreSQL diagnostic logging
+
+In the production-level environments (AAT, performance test and production), both PostgreSQL servers
+send the same six diagnostic log categories and `AllMetrics` used by the legacy CPP deployment to the
+standard central CNP Log Analytics workspace in the `oms-automation` resource group. The HMCTS
+workspace resolver sends AAT and performance test diagnostics to `hmcts-nonprod`, and production
+diagnostics to `hmcts-prod`. Creation is controlled by the same `pgsql_enable_query_diagnostics`
+setting used for PostgreSQL query diagnostics; it is enabled in the AAT, performance test and
+production tfvars and defaults to disabled in other environments.
+
+The diagnostic settings use the legacy `AzureDiagnostics` destination so existing queries remain
+compatible. Query Store and enhanced database metrics are enabled separately through
+`pgsql_enable_query_diagnostics` for AAT, performance test and production.
+
 ### Differences from the legacy CPP-managed PaaS deployment
 
 The HMCTS PostgreSQL module used for AKS-hosted applications does not expose every integration option
 used by the legacy CPP PostgreSQL module, so the following have not been added outside the module:
 
 - the Monday 02:00 UTC maintenance window (the AKS module currently fixes this to Sunday 03:00 UTC);
-- production diagnostic settings targeting the shared `LA-MPD-INT-WS` workspace, including all
-  metrics (the module's Query Performance Insight option creates a separate workspace and overrides
-  query-capture settings, so it is not equivalent);
 - the legacy CPP Entra role/group model and its external credential-vault integration.
