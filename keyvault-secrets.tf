@@ -85,3 +85,43 @@ resource "azurerm_key_vault_secret" "dopdb_postgresql_fqdn" {
 
   tags = local.merged_common_tags
 }
+
+resource "azurerm_key_vault_secret" "optimiser_owner_username" {
+  name         = "optimiser-owner-username"
+  value        = local.optimiser_owner_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_users]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_owner_password" {
+  name         = "optimiser-owner-password"
+  value        = random_password.optimiser_owner.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_users]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_user_username" {
+  name         = "optimiser-user-username"
+  value        = local.optimiser_user_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_users]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_user_password" {
+  name         = "optimiser-user-password"
+  value        = random_password.optimiser_user.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_users]
+}
