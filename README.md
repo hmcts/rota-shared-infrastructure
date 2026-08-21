@@ -34,15 +34,15 @@ created.
 
 In the production-level environments (AAT, performance test and production), both PostgreSQL servers
 send the same six diagnostic log categories and `AllMetrics` used by the legacy CPP deployment to the
-standard central CNP Log Analytics workspace in the `oms-automation` resource group. The HMCTS
-workspace resolver sends AAT and performance test diagnostics to `hmcts-nonprod`, and production
+standard central CNP Log Analytics workspace in the `oms-automation` resource group. The local CNP
+workspace mapping sends AAT and performance test diagnostics to `hmcts-nonprod`, and production
 diagnostics to `hmcts-prod`. Creation is controlled by the same `pgsql_enable_query_diagnostics`
 setting used for PostgreSQL query diagnostics; it is enabled in the AAT, performance test and
 production tfvars and defaults to disabled in other environments.
 
 The diagnostic settings use the legacy `AzureDiagnostics` destination so existing queries remain
-compatible. Query Store and enhanced database metrics are enabled separately through
-`pgsql_enable_query_diagnostics` for AAT, performance test and production.
+compatible. The same `pgsql_enable_query_diagnostics` setting also enables Query Store and enhanced
+database metrics on the PostgreSQL servers.
 
 ### Differences from the legacy CPP-managed PaaS deployment
 
