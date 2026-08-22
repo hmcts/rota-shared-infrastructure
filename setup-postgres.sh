@@ -6,6 +6,8 @@ export PGPORT=5432
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 
 psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname="${DB_NAME}" <<SQL
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
 SELECT format('CREATE ROLE %I LOGIN', '${DB_OWNER_USER}')
 WHERE NOT EXISTS (
   SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_OWNER_USER}'

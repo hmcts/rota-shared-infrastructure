@@ -15,17 +15,17 @@ resource "random_password" "optimiser_user" {
   override_special = "()-_"
 }
 
-resource "terraform_data" "setup_optimiser_users" {
+resource "terraform_data" "setup_optimiser_database" {
   triggers_replace = [
     module.postgresql_dopdb.instance_id,
-    filesha256("${path.module}/setup-postgres-users.sh"),
+    filesha256("${path.module}/setup-postgres.sh"),
     random_password.optimiser_owner.result,
     random_password.optimiser_user.result,
     tostring(local.enable_cft_db_reader_access),
   ]
 
   provisioner "local-exec" {
-    command = "/usr/bin/env bash ${path.module}/setup-postgres-users.sh"
+    command = "/usr/bin/env bash ${path.module}/setup-postgres.sh"
 
     environment = {
       PGHOST                     = module.postgresql_dopdb.fqdn

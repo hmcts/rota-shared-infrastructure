@@ -93,7 +93,7 @@ resource "azurerm_key_vault_secret" "optimiser_owner_username" {
 
   tags = local.merged_common_tags
 
-  depends_on = [terraform_data.setup_optimiser_users]
+  depends_on = [terraform_data.setup_optimiser_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_owner_password" {
@@ -103,7 +103,7 @@ resource "azurerm_key_vault_secret" "optimiser_owner_password" {
 
   tags = local.merged_common_tags
 
-  depends_on = [terraform_data.setup_optimiser_users]
+  depends_on = [terraform_data.setup_optimiser_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_user_username" {
@@ -113,7 +113,7 @@ resource "azurerm_key_vault_secret" "optimiser_user_username" {
 
   tags = local.merged_common_tags
 
-  depends_on = [terraform_data.setup_optimiser_users]
+  depends_on = [terraform_data.setup_optimiser_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_user_password" {
@@ -123,5 +123,5 @@ resource "azurerm_key_vault_secret" "optimiser_user_password" {
 
   tags = local.merged_common_tags
 
-  depends_on = [terraform_data.setup_optimiser_users]
+  depends_on = [terraform_data.setup_optimiser_database]
 }
