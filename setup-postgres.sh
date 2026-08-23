@@ -41,7 +41,6 @@ GRANT "${DB_OWNER_USER}" TO "${DB_ADMIN_USER}";
 SET ROLE "${DB_OWNER_USER}";
 
 -- Grant limited rights to existing tables and sequences in public schema to application user
--- Existing functions are unchanged to avoid attempting grants on admin-owned extension functions
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO "${DB_APPLICATION_USER}";
 GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO "${DB_APPLICATION_USER}";
 
@@ -50,8 +49,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "${DB_APPLICATION_USER}";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO "${DB_APPLICATION_USER}";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT EXECUTE ON FUNCTIONS TO "${DB_APPLICATION_USER}";
 
 -- Reset role back to admin role
 RESET ROLE;
