@@ -1,8 +1,9 @@
 locals {
-  optimiser_owner_username       = "optimiser_owner"
-  optimiser_user_username        = "optimiser_user"
-  enable_cft_db_reader_access    = !contains(["prod", "prd", "production"], lower(var.env))
-  cft_db_access_reader_role_name = "DTS CFT DB Access Reader"
+  optimiser_owner_username   = "optimiser_owner"
+  optimiser_user_username    = "optimiser_user"
+  is_postgresql_prod         = length(regexall(".*(prod).*", var.env)) > 0
+  db_access_reader_role_name = local.is_postgresql_prod ? "DTS JIT Access ${var.product} DB Reader SC" : "DTS CFT DB Access Reader"
+  db_access_writer_role_name = local.is_postgresql_prod ? "DTS JIT Access ${var.product} DB Writer SC" : "DTS CFT DB Access Writer"
 }
 
 resource "random_password" "optimiser_owner" {
@@ -21,7 +22,10 @@ resource "terraform_data" "setup_optimiser_database" {
     filesha256("${path.module}/setup-postgres.sh"),
     random_password.optimiser_owner.result,
     random_password.optimiser_user.result,
-    tostring(local.enable_cft_db_reader_access),
+    local.db_access_reader_role_name,
+    local.db_access_writer_role_name,
+    tostring(local.enable_read_only_group_access),
+    tostring(local.enable_write_group_access),
   ]
 
   provisioner "local-exec" {
@@ -36,8 +40,10 @@ resource "terraform_data" "setup_optimiser_database" {
       DB_OWNER_PASSWORD          = random_password.optimiser_owner.result
       DB_APPLICATION_USER        = local.optimiser_user_username
       DB_APPLICATION_PASSWORD    = random_password.optimiser_user.result
-      ENABLE_CFT_READER_ACCESS   = tostring(local.enable_cft_db_reader_access)
-      CFT_DB_ACCESS_READER_ROLE  = local.cft_db_access_reader_role_name
+      ENABLE_DB_READER_ACCESS    = tostring(local.enable_read_only_group_access)
+      ENABLE_DB_WRITER_ACCESS    = tostring(local.enable_write_group_access)
+      DB_ACCESS_READER_ROLE      = local.db_access_reader_role_name
+      DB_ACCESS_WRITER_ROLE      = local.db_access_writer_role_name
     }
   }
 

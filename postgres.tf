@@ -1,4 +1,7 @@
 locals {
+  enable_read_only_group_access = true
+  enable_write_group_access     = false
+
   pgsql_query_diagnostics_configuration = var.pgsql_enable_query_diagnostics ? {
     "metrics.collector_database_activity"   = "on"
     "metrics.autovacuum_diagnostics"        = "on"
@@ -66,8 +69,8 @@ module "postgresql_dapdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
-  enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_read_only_group_access = local.enable_read_only_group_access
+  enable_write_group_access     = local.enable_write_group_access
 
   pgsql_databases = [
     {
@@ -116,8 +119,8 @@ module "postgresql_dopdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
-  enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_read_only_group_access = local.enable_read_only_group_access
+  enable_write_group_access     = local.enable_write_group_access
 
   pgsql_databases = [
     {

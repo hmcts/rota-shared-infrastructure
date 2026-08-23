@@ -8,7 +8,6 @@ export PGPORT="${PGPORT:-5432}"
 export DB_ADMIN_USER="${DB_ADMIN_USER:-postgres}"
 export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-${DB_ADMIN_USER}}"
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
-export ENABLE_CFT_READER_ACCESS=false
 
 # Optimiser database environment variables
 export DB_NAME="${OPTIMISER_DB_NAME:-optimiserdb}"
