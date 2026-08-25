@@ -29,5 +29,5 @@ WHERE NOT EXISTS (
 SQL
 
 # Setup optimiser database
-PROJECT_HOME=$(cd "$(dirname "$0")/../.." && pwd)
-/usr/bin/env bash "${PROJECT_HOME}/setup-postgres.sh"
+SETUP_SCRIPT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+/usr/bin/env bash "${SETUP_SCRIPT_DIR}/database-setup/setup-postgres.sh"

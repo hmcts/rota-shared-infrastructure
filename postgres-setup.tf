@@ -19,7 +19,7 @@ resource "random_password" "optimiser_user" {
 resource "terraform_data" "setup_optimiser_database" {
   triggers_replace = [
     module.postgresql_dopdb.instance_id,
-    filesha256("${path.module}/setup-postgres.sh"),
+    filesha256("${path.module}/scripts/database-setup/setup-postgres.sh"),
     random_password.optimiser_owner.result,
     random_password.optimiser_user.result,
     local.db_access_reader_role_name,
@@ -29,7 +29,7 @@ resource "terraform_data" "setup_optimiser_database" {
   ]
 
   provisioner "local-exec" {
-    command = "/usr/bin/env bash ${path.module}/setup-postgres.sh"
+    command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-postgres.sh"
 
     environment = {
       PGHOST                     = module.postgresql_dopdb.fqdn
