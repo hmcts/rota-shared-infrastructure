@@ -6,14 +6,30 @@ locals {
   db_access_writer_role_name = local.is_postgresql_prod ? "DTS JIT Access ${var.product} DB Writer SC" : "DTS CFT DB Access Writer"
 }
 
+resource "terraform_data" "trigger_optimiser_owner_password_reset" {
+  input = "any value here"
+}
+
+resource "terraform_data" "trigger_optimiser_user_password_reset" {
+  input = "any value here"
+}
+
 resource "random_password" "optimiser_owner" {
   length           = 20
   override_special = "()-_"
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.trigger_optimiser_owner_password_reset]
+  }
 }
 
 resource "random_password" "optimiser_user" {
   length           = 20
   override_special = "()-_"
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.trigger_optimiser_user_password_reset]
+  }
 }
 
 resource "terraform_data" "setup_optimiser_database" {
