@@ -86,6 +86,46 @@ resource "azurerm_key_vault_secret" "dopdb_postgresql_fqdn" {
   tags = local.merged_common_tags
 }
 
+resource "azurerm_key_vault_secret" "moj_owner_username" {
+  name         = "moj-owner-username"
+  value        = local.moj_owner_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "moj_owner_password" {
+  name         = "moj-owner-password"
+  value        = random_password.moj_owner.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "moj_user_username" {
+  name         = "moj-user-username"
+  value        = local.moj_user_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "moj_user_password" {
+  name         = "moj-user-password"
+  value        = random_password.moj_user.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
 resource "azurerm_key_vault_secret" "optimiser_owner_username" {
   name         = "optimiser-owner-username"
   value        = local.optimiser_owner_username

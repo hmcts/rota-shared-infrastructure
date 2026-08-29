@@ -32,7 +32,6 @@ GRANT CONNECT ON DATABASE "${DB_NAME}" TO "${DB_OWNER_USER}";
 GRANT CONNECT ON DATABASE "${DB_NAME}" TO "${DB_APPLICATION_USER}";
 GRANT USAGE, CREATE ON SCHEMA public TO "${DB_OWNER_USER}";
 GRANT USAGE ON SCHEMA public TO "${DB_APPLICATION_USER}";
-REVOKE CREATE ON SCHEMA public FROM "${DB_APPLICATION_USER}";
 
 -- Grant owner role to admin user
 GRANT "${DB_OWNER_USER}" TO "${DB_ADMIN_USER}";
@@ -55,9 +54,10 @@ SQL
 if [[ "${ENABLE_DB_READER_ACCESS:-false}" == "true" && -n "${DB_ACCESS_READER_ROLE:-}" ]]; then
   psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname="${DB_NAME}" <<SQL
 -- Grant database reader role access to public schema
+GRANT CONNECT ON DATABASE "${DB_NAME}" TO "${DB_ACCESS_READER_ROLE}";
 GRANT USAGE ON SCHEMA public TO "${DB_ACCESS_READER_ROLE}";
 
--- Switch to owner role for grants
+-- Switch to owner role for grants to reader role
 SET ROLE "${DB_OWNER_USER}";
 
 -- Grant reader role access to existing and future owner-created tables in public schema
@@ -73,9 +73,10 @@ fi
 if [[ "${ENABLE_DB_WRITER_ACCESS:-false}" == "true" && -n "${DB_ACCESS_WRITER_ROLE:-}" ]]; then
   psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname="${DB_NAME}" <<SQL
 -- Grant database writer role access to public schema
+GRANT CONNECT ON DATABASE "${DB_NAME}" TO "${DB_ACCESS_WRITER_ROLE}";
 GRANT USAGE ON SCHEMA public TO "${DB_ACCESS_WRITER_ROLE}";
 
--- Switch to owner role for grants
+-- Switch to owner role for grants to writer role
 SET ROLE "${DB_OWNER_USER}";
 
 -- Grant writer role access to existing and future owner-created tables and sequences in public schema
