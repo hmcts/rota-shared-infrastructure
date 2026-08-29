@@ -11,6 +11,28 @@ export DB_ADMIN_USER="${DB_ADMIN_USER:-postgres}"
 export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-${DB_ADMIN_USER}}"
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 
+# Non-prod reader and writer database roles
+export DB_ACCESS_READER_ROLE="${DB_ACCESS_READER_ROLE:-DTS CFT DB Access Reader}"
+export DB_ACCESS_WRITER_ROLE="${DB_ACCESS_WRITER_ROLE:-DTS CFT DB Access Writer}"
+export ENABLE_DB_READER_ACCESS="${ENABLE_DB_READER_ACCESS:-true}"
+export ENABLE_DB_WRITER_ACCESS="${ENABLE_DB_WRITER_ACCESS:-false}"
+
+psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname=postgres <<SQL
+-- Create reader role if it does not exist
+SELECT format('CREATE ROLE %I NOLOGIN', '${DB_ACCESS_READER_ROLE}')
+WHERE NOT EXISTS (
+  SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_ACCESS_READER_ROLE}'
+)
+\gexec
+
+-- Create writer role if it does not exist
+SELECT format('CREATE ROLE %I NOLOGIN', '${DB_ACCESS_WRITER_ROLE}')
+WHERE NOT EXISTS (
+  SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_ACCESS_WRITER_ROLE}'
+)
+\gexec
+SQL
+
 # Portal database environment variables
 export DB_NAME="${PORTAL_DB_NAME:-mojdb}"
 export DB_OWNER_USER="${PORTAL_DB_OWNER_USER:-moj_owner}"
