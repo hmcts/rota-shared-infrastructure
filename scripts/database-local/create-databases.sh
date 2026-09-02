@@ -11,27 +11,17 @@ export DB_ADMIN_USER="${DB_ADMIN_USER:-postgres}"
 export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-${DB_ADMIN_USER}}"
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 
-# Non-prod reader and writer database roles
+# Non-production reader and writer database roles
 export DB_ACCESS_READER_ROLE="${DB_ACCESS_READER_ROLE:-DTS CFT DB Access Reader}"
 export DB_ACCESS_WRITER_ROLE="${DB_ACCESS_WRITER_ROLE:-DTS CFT DB Access Writer}"
 export ENABLE_DB_READER_ACCESS="${ENABLE_DB_READER_ACCESS:-true}"
 export ENABLE_DB_WRITER_ACCESS="${ENABLE_DB_WRITER_ACCESS:-false}"
 
-psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname=postgres <<SQL
--- Create reader role if it does not exist
-SELECT format('CREATE ROLE %I NOLOGIN', '${DB_ACCESS_READER_ROLE}')
-WHERE NOT EXISTS (
-  SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_ACCESS_READER_ROLE}'
-)
-\gexec
+# Create non-production reader role
+DB_NOLOGIN_ROLE="${DB_ACCESS_READER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
 
--- Create writer role if it does not exist
-SELECT format('CREATE ROLE %I NOLOGIN', '${DB_ACCESS_WRITER_ROLE}')
-WHERE NOT EXISTS (
-  SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_ACCESS_WRITER_ROLE}'
-)
-\gexec
-SQL
+# Create non-production writer role
+DB_NOLOGIN_ROLE="${DB_ACCESS_WRITER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
 
 # Portal database environment variables
 export DB_NAME="${PORTAL_DB_NAME:-mojdb}"
@@ -40,17 +30,8 @@ export DB_OWNER_PASSWORD="${PORTAL_DB_OWNER_PASSWORD:-${DB_OWNER_USER}}"
 export DB_APPLICATION_USER="${PORTAL_DB_APPLICATION_USER:-moj_user}"
 export DB_APPLICATION_PASSWORD="${PORTAL_DB_APPLICATION_PASSWORD:-${DB_APPLICATION_USER}}"
 
-# Create portal database if it does not already exist
-psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname=postgres <<SQL
-SELECT format(
-  'CREATE DATABASE %I WITH TEMPLATE template0 ENCODING ''UTF8'' LC_COLLATE ''en_GB.UTF-8'' LC_CTYPE ''en_GB.UTF-8''',
-  '${DB_NAME}'
-)
-WHERE NOT EXISTS (
-  SELECT FROM pg_catalog.pg_database WHERE datname = '${DB_NAME}'
-)
-\gexec
-SQL
+# Create portal database
+/usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-database.sh"
 
 # Setup portal database
 /usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
@@ -62,17 +43,8 @@ export DB_OWNER_PASSWORD="${OPTIMISER_DB_OWNER_PASSWORD:-${DB_OWNER_USER}}"
 export DB_APPLICATION_USER="${OPTIMISER_DB_APPLICATION_USER:-optimiser_user}"
 export DB_APPLICATION_PASSWORD="${OPTIMISER_DB_APPLICATION_PASSWORD:-${DB_APPLICATION_USER}}"
 
-# Create optimiser database if it does not already exist
-psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname=postgres <<SQL
-SELECT format(
-  'CREATE DATABASE %I WITH TEMPLATE template0 ENCODING ''UTF8'' LC_COLLATE ''en_GB.UTF-8'' LC_CTYPE ''en_GB.UTF-8''',
-  '${DB_NAME}'
-)
-WHERE NOT EXISTS (
-  SELECT FROM pg_catalog.pg_database WHERE datname = '${DB_NAME}'
-)
-\gexec
-SQL
+# Create optimiser database
+/usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-database.sh"
 
 # Setup optimiser database
 /usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
