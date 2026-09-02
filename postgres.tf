@@ -1,4 +1,6 @@
 locals {
+  portal_database_name          = "mojdb"
+  optimiser_database_name       = "optimiserdb"
   enable_read_only_group_access = true
   enable_write_group_access     = false
 
@@ -74,7 +76,7 @@ module "postgresql_dapdb" {
 
   pgsql_databases = [
     {
-      name : "mojdb"
+      name : local.portal_database_name
       schemas_for_reader_access : ["public"]
       schemas_for_writer_access : ["public"]
     }
@@ -124,7 +126,7 @@ module "postgresql_dopdb" {
 
   pgsql_databases = [
     {
-      name : "optimiserdb"
+      name : local.optimiser_database_name
       schemas_for_reader_access : ["public"]
       schemas_for_writer_access : ["public"]
     }

@@ -76,18 +76,18 @@ resource "terraform_data" "setup_portal_database" {
     command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-postgres.sh"
 
     environment = {
-      PGHOST                     = module.postgresql_dapdb.fqdn
-      DB_NAME                    = "mojdb"
-      DB_ADMIN_USER              = module.postgresql_dapdb.username
-      DB_ADMIN_PASSWORD          = module.postgresql_dapdb.password
-      DB_OWNER_USER              = local.moj_owner_username
-      DB_OWNER_PASSWORD          = random_password.moj_owner.result
-      DB_APPLICATION_USER        = local.moj_user_username
-      DB_APPLICATION_PASSWORD    = random_password.moj_user.result
-      ENABLE_DB_READER_ACCESS    = tostring(local.enable_read_only_group_access)
-      ENABLE_DB_WRITER_ACCESS    = tostring(local.enable_write_group_access)
-      DB_ACCESS_READER_ROLE      = local.db_access_reader_role_name
-      DB_ACCESS_WRITER_ROLE      = local.db_access_writer_role_name
+      PGHOST                  = module.postgresql_dapdb.fqdn
+      DB_NAME                 = local.portal_database_name
+      DB_ADMIN_USER           = module.postgresql_dapdb.username
+      DB_ADMIN_PASSWORD       = module.postgresql_dapdb.password
+      DB_OWNER_USER           = local.moj_owner_username
+      DB_OWNER_PASSWORD       = random_password.moj_owner.result
+      DB_APPLICATION_USER     = local.moj_user_username
+      DB_APPLICATION_PASSWORD = random_password.moj_user.result
+      ENABLE_DB_READER_ACCESS = tostring(local.enable_read_only_group_access)
+      ENABLE_DB_WRITER_ACCESS = tostring(local.enable_write_group_access)
+      DB_ACCESS_READER_ROLE   = local.db_access_reader_role_name
+      DB_ACCESS_WRITER_ROLE   = local.db_access_writer_role_name
     }
   }
 
@@ -110,18 +110,18 @@ resource "terraform_data" "setup_optimiser_database" {
     command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-postgres.sh"
 
     environment = {
-      PGHOST                     = module.postgresql_dopdb.fqdn
-      DB_NAME                    = "optimiserdb"
-      DB_ADMIN_USER              = module.postgresql_dopdb.username
-      DB_ADMIN_PASSWORD          = module.postgresql_dopdb.password
-      DB_OWNER_USER              = local.optimiser_owner_username
-      DB_OWNER_PASSWORD          = random_password.optimiser_owner.result
-      DB_APPLICATION_USER        = local.optimiser_user_username
-      DB_APPLICATION_PASSWORD    = random_password.optimiser_user.result
-      ENABLE_DB_READER_ACCESS    = tostring(local.enable_read_only_group_access)
-      ENABLE_DB_WRITER_ACCESS    = tostring(local.enable_write_group_access)
-      DB_ACCESS_READER_ROLE      = local.db_access_reader_role_name
-      DB_ACCESS_WRITER_ROLE      = local.db_access_writer_role_name
+      PGHOST                  = module.postgresql_dopdb.fqdn
+      DB_NAME                 = local.optimiser_database_name
+      DB_ADMIN_USER           = module.postgresql_dopdb.username
+      DB_ADMIN_PASSWORD       = module.postgresql_dopdb.password
+      DB_OWNER_USER           = local.optimiser_owner_username
+      DB_OWNER_PASSWORD       = random_password.optimiser_owner.result
+      DB_APPLICATION_USER     = local.optimiser_user_username
+      DB_APPLICATION_PASSWORD = random_password.optimiser_user.result
+      ENABLE_DB_READER_ACCESS = tostring(local.enable_read_only_group_access)
+      ENABLE_DB_WRITER_ACCESS = tostring(local.enable_write_group_access)
+      DB_ACCESS_READER_ROLE   = local.db_access_reader_role_name
+      DB_ACCESS_WRITER_ROLE   = local.db_access_writer_role_name
     }
   }
 
