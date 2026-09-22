@@ -17,18 +17,12 @@
 
 # Troubleshooting
 
-## Unable To Run Powershell Scripts
+## Unable To Run PowerShell Scripts
 
-By default on Windows, all PowerShell scripts are blocked from running. To be able to run these scripts, the execution policy must be changed to allow locally created scripts to be run, while still requiring downloaded scripts to be digitally signed by a trusted publisher or explicitly unblocked.
+By default on Windows, all PowerShell scripts are blocked from running. To be able to run these scripts, the execution policy must be changed to allow locally created scripts to be run. However, downloaded scripts should still require to be digitally signed by a trusted publisher or explicitly unblocked.
 
-Run the following commnd in a Terminal to change the PowerShell scripts execution policy:
+Run the following commnd in a Terminal, to change the PowerShell scripts execution policy to allow signed or locally created scripts to be run:
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
-```
-
-Run the following command in a Terminal to unblock the scripts in this repository:
-
-```powershell
-Get-ChildItem "C:\path\to\rota-shared-infrastructure" -Recurse -File -Filter *.ps1 | Unblock-File
 ```
