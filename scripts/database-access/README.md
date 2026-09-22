@@ -14,3 +14,21 @@
 5. Open a tunnel to the relevant database by SSHing to the non-production bastion server with port forwarding to the relevant database
 6. Connect to the relevant database using the `DTS CFT DB Access Reader` or `DTS CFT DB Access Writer` as the user with the access token from step 4
 7. Access tokens expire within hours and so should not be cached locally, because you will have to request a new one the next time you connect
+
+# Troubleshooting
+
+## Unable To Run Powershell Scripts
+
+By default on Windows, all PowerShell scripts are blocked from running. To be able to run these scripts, the execution policy must be changed to allow locally created scripts to be run, while still requiring downloaded scripts to be digitally signed by a trusted publisher or explicitly unblocked.
+
+Run the following commnd in a Terminal to change the PowerShell scripts execution policy:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+```
+
+Run the following command in a Terminal to unblock the scripts in this repository:
+
+```powershell
+Get-ChildItem "C:\path\to\rota-shared-infrastructure" -Recurse -File -Filter *.ps1 | Unblock-File
+```
