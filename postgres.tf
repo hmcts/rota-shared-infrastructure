@@ -67,7 +67,7 @@ module "postgresql_dapdb" {
   subnet_suffix       = "expanded"
 
   enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_write_group_access     = false
 
   pgsql_databases = [
     {
@@ -117,7 +117,7 @@ module "postgresql_dopdb" {
   subnet_suffix       = "expanded"
 
   enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_write_group_access     = false
 
   pgsql_databases = [
     {
