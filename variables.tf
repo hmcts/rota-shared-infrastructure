@@ -53,7 +53,7 @@ variable "pgsql_high_availability" {
 }
 
 variable "pgsql_enable_query_diagnostics" {
-  description = "Enable query store and wait sampling diagnostics on both PostgreSQL Flexible Servers. Defaults to the development tier."
+  description = "Enable query diagnostics and export PostgreSQL logs and metrics to the central CNP Log Analytics workspace. Defaults to the development tier."
   type        = bool
   default     = false
 }
