@@ -66,8 +66,9 @@ module "postgresql_dapdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
-  enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_read_only_group_access  = true
+  enable_write_group_access      = true
+  force_user_permissions_trigger = "rota-writer-groups-v1"
 
   pgsql_databases = [
     {
@@ -116,8 +117,9 @@ module "postgresql_dopdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
-  enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_read_only_group_access  = true
+  enable_write_group_access      = true
+  force_user_permissions_trigger = "rota-writer-groups-v1"
 
   pgsql_databases = [
     {

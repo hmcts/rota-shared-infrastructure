@@ -30,6 +30,9 @@ The existing generic `postgresql-*` Key Vault secrets and `postgresql_fqdn` outp
 DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` secrets are also
 created.
 
+Writer-group prerequisites and the non-production Entra object-ID mapping are
+documented in [Rota PostgreSQL writer groups](docs/postgresql-writer-groups.md).
+
 ### Differences from the legacy CPP-managed PaaS deployment
 
 The HMCTS PostgreSQL module used for AKS-hosted applications does not expose every integration option
