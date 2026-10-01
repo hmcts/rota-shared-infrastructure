@@ -1,5 +1,6 @@
 locals {
-  rota_db_writer_group_name = length(regexall("prod", var.env)) > 0 ? null : "DTS CFT Rota DB Access Writer"
+  is_prod                   = length(regexall("prod", var.env)) > 0
+  rota_db_writer_group_name = "DTS CFT Rota DB Access Writer"
 
   pgsql_query_diagnostics_configuration = var.pgsql_enable_query_diagnostics ? {
     "metrics.collector_database_activity"   = "on"
@@ -58,8 +59,7 @@ module "postgresql_dapdb" {
     azurerm.postgres_network = azurerm.postgres_network
   }
 
-  # Use the module PR branch until its db_writer_group_name input is merged.
-  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=feat/rota-writer-group"
+  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=master"
   env    = var.env
 
   name                = "rota-psql-dapdb"
@@ -70,8 +70,8 @@ module "postgresql_dapdb" {
   subnet_suffix       = "expanded"
 
   enable_read_only_group_access = true
-  enable_write_group_access     = true
-  db_writer_group_name          = local.rota_db_writer_group_name
+  # The module's non-prod writer group is CFT-wide; grant Rota's group below instead.
+  enable_write_group_access = local.is_prod
 
   pgsql_databases = [
     {
@@ -110,8 +110,7 @@ module "postgresql_dopdb" {
     azurerm.postgres_network = azurerm.postgres_network
   }
 
-  # Use the module PR branch until its db_writer_group_name input is merged.
-  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=feat/rota-writer-group"
+  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=master"
   env    = var.env
 
   name                = "rota-psql-dopdb"
@@ -122,8 +121,7 @@ module "postgresql_dopdb" {
   subnet_suffix       = "expanded"
 
   enable_read_only_group_access = true
-  enable_write_group_access     = true
-  db_writer_group_name          = local.rota_db_writer_group_name
+  enable_write_group_access     = local.is_prod
 
   pgsql_databases = [
     {
@@ -154,4 +152,36 @@ module "postgresql_dopdb" {
   admin_user_object_id = var.jenkins_AAD_objectId
 
   common_tags = local.merged_common_tags
+}
+
+data "azuread_service_principal" "rota_db_permissions" {
+  count     = local.is_prod ? 0 : 1
+  object_id = var.jenkins_AAD_objectId
+}
+
+resource "null_resource" "rota_db_writer_permissions" {
+  for_each = local.is_prod ? {} : {
+    mojdb       = module.postgresql_dapdb.fqdn
+    optimiserdb = module.postgresql_dopdb.fqdn
+  }
+
+  triggers = {
+    host        = each.value
+    database    = each.key
+    writer      = local.rota_db_writer_group_name
+    script_hash = filesha256("${path.module}/set-rota-db-writer-permissions.bash")
+  }
+
+  provisioner "local-exec" {
+    command = "${path.module}/set-rota-db-writer-permissions.bash"
+
+    environment = {
+      PGHOST          = self.triggers.host
+      DB_NAME         = self.triggers.database
+      DB_WRITER_GROUP = self.triggers.writer
+      DB_USER         = data.azuread_service_principal.rota_db_permissions[0].display_name
+    }
+  }
+
+  depends_on = [module.postgresql_dapdb, module.postgresql_dopdb]
 }

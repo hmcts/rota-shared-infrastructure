@@ -31,9 +31,12 @@ DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` 
 created.
 
 Non-production PostgreSQL writer access for both `mojdb` and `optimiserdb` requires the Entra
-group `DTS CFT Rota DB Access Writer`. Production keeps the module's default Rota-specific JIT
-writer group. The permissions script maps the Entra group to PostgreSQL and grants access to the
-`public` schema; it does not create the Entra group or revoke grants from a previous writer role.
+group `DTS CFT Rota DB Access Writer`. The shared module's generic CFT writer grant is disabled
+in non-production. A Rota-owned permissions script maps the group to PostgreSQL and grants
+`public` schema access after both module instances are ready. Production retains the module's
+default Rota-specific JIT writer group and does not run the Rota-owned script. The Entra group
+must exist before applying this change; neither script creates it. The Rota-owned script does
+not revoke grants from any previously configured writer role.
 
 ### Differences from the legacy CPP-managed PaaS deployment
 
