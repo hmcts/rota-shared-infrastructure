@@ -30,6 +30,11 @@ The existing generic `postgresql-*` Key Vault secrets and `postgresql_fqdn` outp
 DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` secrets are also
 created.
 
+Non-production PostgreSQL writer access for both `mojdb` and `optimiserdb` requires the Entra
+group `DTS CFT Rota DB Access Writer`. Production keeps the module's default Rota-specific JIT
+writer group. The permissions script maps the Entra group to PostgreSQL and grants access to the
+`public` schema; it does not create the Entra group or revoke grants from a previous writer role.
+
 ### Differences from the legacy CPP-managed PaaS deployment
 
 The HMCTS PostgreSQL module used for AKS-hosted applications does not expose every integration option

@@ -1,4 +1,6 @@
 locals {
+  rota_db_writer_group_name = length(regexall("prod", var.env)) > 0 ? null : "DTS CFT Rota DB Access Writer"
+
   pgsql_query_diagnostics_configuration = var.pgsql_enable_query_diagnostics ? {
     "metrics.collector_database_activity"   = "on"
     "metrics.autovacuum_diagnostics"        = "on"
@@ -56,7 +58,8 @@ module "postgresql_dapdb" {
     azurerm.postgres_network = azurerm.postgres_network
   }
 
-  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=master"
+  # Use the module PR branch until its db_writer_group_name input is merged.
+  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=feat/rota-writer-group"
   env    = var.env
 
   name                = "rota-psql-dapdb"
@@ -68,6 +71,7 @@ module "postgresql_dapdb" {
 
   enable_read_only_group_access = true
   enable_write_group_access     = true
+  db_writer_group_name          = local.rota_db_writer_group_name
 
   pgsql_databases = [
     {
@@ -106,7 +110,8 @@ module "postgresql_dopdb" {
     azurerm.postgres_network = azurerm.postgres_network
   }
 
-  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=master"
+  # Use the module PR branch until its db_writer_group_name input is merged.
+  source = "git@github.com:hmcts/terraform-module-postgresql-flexible?ref=feat/rota-writer-group"
   env    = var.env
 
   name                = "rota-psql-dopdb"
@@ -118,6 +123,7 @@ module "postgresql_dopdb" {
 
   enable_read_only_group_access = true
   enable_write_group_access     = true
+  db_writer_group_name          = local.rota_db_writer_group_name
 
   pgsql_databases = [
     {
