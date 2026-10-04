@@ -19,9 +19,7 @@
 
 ## Unable To Run PowerShell Scripts
 
-By default on Windows, all PowerShell scripts are blocked from running. To be able to run these scripts, the execution policy must be changed to allow locally created scripts to be run. However, downloaded scripts should still require to be digitally signed by a trusted publisher or explicitly unblocked.
-
-Run the following commnd in a Terminal, to change the PowerShell scripts execution policy to allow signed or locally created scripts to be run:
+By default on Windows, all PowerShell scripts are blocked from running. Run the command below in a Terminal to change the PowerShell scripts execution policy for the current user. This will allow only digitally signed or locally created scripts to be run without an explicit unblock. This will allow scripts cloned from this GitHub repository to be run, because cloning will mean Windows will regard them as locally created.
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
