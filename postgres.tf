@@ -1,5 +1,5 @@
 locals {
-  portal_database_name          = "mojdb"
+  portal_database_name          = "portaldb"
   optimiser_database_name       = "optimiserdb"
   enable_read_only_group_access = true
   enable_write_group_access     = false

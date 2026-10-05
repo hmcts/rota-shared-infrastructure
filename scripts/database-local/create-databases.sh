@@ -24,10 +24,10 @@ DB_NOLOGIN_ROLE="${DB_ACCESS_READER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/dat
 DB_NOLOGIN_ROLE="${DB_ACCESS_WRITER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
 
 # Portal database environment variables
-export DB_NAME="${PORTAL_DB_NAME:-mojdb}"
-export DB_OWNER_USER="${PORTAL_DB_OWNER_USER:-moj_owner}"
+export DB_NAME="${PORTAL_DB_NAME:-portaldb}"
+export DB_OWNER_USER="${PORTAL_DB_OWNER_USER:-portal_owner}"
 export DB_OWNER_PASSWORD="${PORTAL_DB_OWNER_PASSWORD:-${DB_OWNER_USER}}"
-export DB_APPLICATION_USER="${PORTAL_DB_APPLICATION_USER:-moj_user}"
+export DB_APPLICATION_USER="${PORTAL_DB_APPLICATION_USER:-portal_user}"
 export DB_APPLICATION_PASSWORD="${PORTAL_DB_APPLICATION_PASSWORD:-${DB_APPLICATION_USER}}"
 
 # Create portal database

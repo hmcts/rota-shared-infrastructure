@@ -1,6 +1,6 @@
 locals {
-  moj_owner_username         = "moj_owner"
-  moj_user_username          = "moj_user"
+  portal_owner_username      = "portal_owner"
+  portal_user_username       = "portal_user"
   optimiser_owner_username   = "optimiser_owner"
   optimiser_user_username    = "optimiser_user"
   is_postgresql_prod         = length(regexall(".*(prod).*", var.env)) > 0
@@ -8,11 +8,11 @@ locals {
   db_access_writer_role_name = local.is_postgresql_prod ? "DTS JIT Access ${var.product} DB Writer SC" : "DTS CFT DB Access Writer"
 }
 
-resource "terraform_data" "trigger_moj_owner_password_reset" {
+resource "terraform_data" "trigger_portal_owner_password_reset" {
   input = "any value here"
 }
 
-resource "terraform_data" "trigger_moj_user_password_reset" {
+resource "terraform_data" "trigger_portal_user_password_reset" {
   input = "any value here"
 }
 
@@ -24,21 +24,21 @@ resource "terraform_data" "trigger_optimiser_user_password_reset" {
   input = "any value here"
 }
 
-resource "random_password" "moj_owner" {
+resource "random_password" "portal_owner" {
   length           = 20
   override_special = "()-_"
 
   lifecycle {
-    replace_triggered_by = [terraform_data.trigger_moj_owner_password_reset]
+    replace_triggered_by = [terraform_data.trigger_portal_owner_password_reset]
   }
 }
 
-resource "random_password" "moj_user" {
+resource "random_password" "portal_user" {
   length           = 20
   override_special = "()-_"
 
   lifecycle {
-    replace_triggered_by = [terraform_data.trigger_moj_user_password_reset]
+    replace_triggered_by = [terraform_data.trigger_portal_user_password_reset]
   }
 }
 
@@ -64,8 +64,8 @@ resource "terraform_data" "setup_portal_database" {
   triggers_replace = [
     module.postgresql_dapdb.instance_id,
     filesha256("${path.module}/scripts/database-setup/setup-postgres.sh"),
-    random_password.moj_owner.result,
-    random_password.moj_user.result,
+    random_password.portal_owner.result,
+    random_password.portal_user.result,
     local.db_access_reader_role_name,
     local.db_access_writer_role_name,
     tostring(local.enable_read_only_group_access),
@@ -80,10 +80,10 @@ resource "terraform_data" "setup_portal_database" {
       DB_NAME                 = local.portal_database_name
       DB_ADMIN_USER           = module.postgresql_dapdb.username
       DB_ADMIN_PASSWORD       = module.postgresql_dapdb.password
-      DB_OWNER_USER           = local.moj_owner_username
-      DB_OWNER_PASSWORD       = random_password.moj_owner.result
-      DB_APPLICATION_USER     = local.moj_user_username
-      DB_APPLICATION_PASSWORD = random_password.moj_user.result
+      DB_OWNER_USER           = local.portal_owner_username
+      DB_OWNER_PASSWORD       = random_password.portal_owner.result
+      DB_APPLICATION_USER     = local.portal_user_username
+      DB_APPLICATION_PASSWORD = random_password.portal_user.result
       ENABLE_DB_READER_ACCESS = tostring(local.enable_read_only_group_access)
       ENABLE_DB_WRITER_ACCESS = tostring(local.enable_write_group_access)
       DB_ACCESS_READER_ROLE   = local.db_access_reader_role_name

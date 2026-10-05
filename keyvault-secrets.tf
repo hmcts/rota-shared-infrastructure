@@ -86,9 +86,9 @@ resource "azurerm_key_vault_secret" "dopdb_postgresql_fqdn" {
   tags = local.merged_common_tags
 }
 
-resource "azurerm_key_vault_secret" "moj_owner_username" {
-  name         = "moj-owner-username"
-  value        = local.moj_owner_username
+resource "azurerm_key_vault_secret" "portal_owner_username" {
+  name         = "portal-owner-username"
+  value        = local.portal_owner_username
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
@@ -96,9 +96,9 @@ resource "azurerm_key_vault_secret" "moj_owner_username" {
   depends_on = [terraform_data.setup_portal_database]
 }
 
-resource "azurerm_key_vault_secret" "moj_owner_password" {
-  name         = "moj-owner-password"
-  value        = random_password.moj_owner.result
+resource "azurerm_key_vault_secret" "portal_owner_password" {
+  name         = "portal-owner-password"
+  value        = random_password.portal_owner.result
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
@@ -106,9 +106,9 @@ resource "azurerm_key_vault_secret" "moj_owner_password" {
   depends_on = [terraform_data.setup_portal_database]
 }
 
-resource "azurerm_key_vault_secret" "moj_user_username" {
-  name         = "moj-user-username"
-  value        = local.moj_user_username
+resource "azurerm_key_vault_secret" "portal_user_username" {
+  name         = "portal-user-username"
+  value        = local.portal_user_username
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
@@ -116,9 +116,9 @@ resource "azurerm_key_vault_secret" "moj_user_username" {
   depends_on = [terraform_data.setup_portal_database]
 }
 
-resource "azurerm_key_vault_secret" "moj_user_password" {
-  name         = "moj-user-password"
-  value        = random_password.moj_user.result
+resource "azurerm_key_vault_secret" "portal_user_password" {
+  name         = "portal-user-password"
+  value        = random_password.portal_user.result
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags

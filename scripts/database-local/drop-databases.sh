@@ -10,7 +10,7 @@ export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-${DB_ADMIN_USER}}"
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 
 # Portal database environment variables
-export PORTAL_DB_NAME="${PORTAL_DB_NAME:-mojdb}"
+export PORTAL_DB_NAME="${PORTAL_DB_NAME:-portaldb}"
 
 # Drop portal database if it exists
 psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname=postgres <<SQL
