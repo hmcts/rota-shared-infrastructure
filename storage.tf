@@ -9,7 +9,7 @@ module "blobstore" {
   account_tier             = "Standard"
   account_replication_type = var.postgres_geo_redundant_backups ? "GRS" : "LRS"
   # Azure DevOps agents in hmcts-cftptl-agent-pool run on these CFT PTL AKS subnets.
-  sa_subnets               = [
+  sa_subnets = [
     "/subscriptions/1baf5470-1c3e-40d3-a6f7-74bfbce4b348/resourceGroups/cft-ptl-network-rg/providers/Microsoft.Network/virtualNetworks/cft-ptl-vnet/subnets/aks-00",
     "/subscriptions/1baf5470-1c3e-40d3-a6f7-74bfbce4b348/resourceGroups/cft-ptl-network-rg/providers/Microsoft.Network/virtualNetworks/cft-ptl-vnet/subnets/aks-01",
   ]
