@@ -14,6 +14,14 @@ resource "azurerm_key_vault_secret" "application_insights_instrumentation_key" {
   tags = local.merged_common_tags
 }
 
+resource "azurerm_key_vault_secret" "storage_account_primary_access_key" {
+  name         = "storage-account-primary-access-key"
+  value        = module.blobstore.storageaccount_primary_access_key
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+}
+
 resource "azurerm_key_vault_secret" "postgresql_admin_username" {
   name         = "postgresql-admin-username"
   value        = module.postgresql_dapdb.username
