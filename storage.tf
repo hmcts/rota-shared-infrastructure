@@ -23,13 +23,13 @@ resource "azurerm_storage_container" "anonymised_db_dumps" {
   container_access_type = "private"
 }
 
-data "azuread_service_principal" "dump_distribution" {
-  # Service principal behind the DTS-CFTPTL-INTSVC Azure DevOps connection.
-  display_name = "DTS Bootstrap (sub:dts-cftptl-intsvc)"
-}
+# data "azuread_service_principal" "dump_distribution" {
+#   # Service principal behind the DTS-CFTPTL-INTSVC Azure DevOps connection.
+#   display_name = "DTS Bootstrap (sub:dts-cftptl-intsvc)"
+# }
 
-resource "azurerm_role_assignment" "dump_distribution" {
-  scope                = "${module.blobstore.storageaccount_id}/blobServices/default/containers/${azurerm_storage_container.anonymised_db_dumps.name}"
-  role_definition_name = var.env == "prod" ? "Storage Blob Data Reader" : "Storage Blob Data Contributor"
-  principal_id         = data.azuread_service_principal.dump_distribution.object_id
-}
+# resource "azurerm_role_assignment" "dump_distribution" {
+#   scope                = "${module.blobstore.storageaccount_id}/blobServices/default/containers/${azurerm_storage_container.anonymised_db_dumps.name}"
+#   role_definition_name = var.env == "prod" ? "Storage Blob Data Reader" : "Storage Blob Data Contributor"
+#   principal_id         = data.azuread_service_principal.dump_distribution.object_id
+# }
