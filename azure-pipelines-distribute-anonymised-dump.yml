@@ -3,36 +3,20 @@ pr: none
 
 parameters:
   - name: blobName
-    displayName: Name of the anonymised dump in the production container
+    displayName: Name of the anonymised dump in the Demo container
     type: string
     default: ''
-  - name: aat
-    displayName: Copy to AAT
-    type: boolean
-    default: true
-  - name: demo
-    displayName: Copy to Demo
-    type: boolean
-    default: true
-  - name: ithc
-    displayName: Copy to ITHC
-    type: boolean
-    default: true
-  - name: perftest
-    displayName: Copy to Perftest
-    type: boolean
-    default: true
 
 pool:
   name: hmcts-cftptl-agent-pool
 
 jobs:
   - job: distribute
-    displayName: Distribute production anonymised dump
+    displayName: Copy Demo anonymised dump to AAT
     timeoutInMinutes: 150
     steps:
       - task: AzureCLI@2
-        displayName: Copy dump to non-production environments
+        displayName: Copy dump to AAT
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
@@ -40,9 +24,3 @@ jobs:
           scriptPath: $(Build.SourcesDirectory)/scripts/distribute-anonymised-dump.sh
         env:
           BLOB_NAME: ${{ parameters.blobName }}
-          DESTINATION_ENVIRONMENTS: >-
-            ${{ format('{0} {1} {2} {3}',
-            iif(parameters.aat, 'aat', ''),
-            iif(parameters.demo, 'demo', ''),
-            iif(parameters.ithc, 'ithc', ''),
-            iif(parameters.perftest, 'perftest', '')) }}

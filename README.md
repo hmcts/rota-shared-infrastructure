@@ -33,28 +33,21 @@ created.
 ## Distributing anonymised database dumps
 
 Register `azure-pipelines-distribute-anonymised-dump.yml` as a pipeline in the PlatformOperations
-Azure DevOps project. Run it manually with the production `anonymised-db-dumps` blob filename in
-`blobName`, then select the destination checkboxes (`aat`, `demo`, `ithc` and `perftest`). All four
-are selected by default; at least one must be selected. The source is always `rotasaprod` and the
-production blob stays in place. Filenames must start with a letter or digit and may contain letters,
-digits, dots, underscores and hyphens.
+Azure DevOps project. Run it manually with the Demo `anonymised-db-dumps` blob filename in
+`blobName`. The source is `rotasademo` for testing until production exists, and the only destination
+is `rotasaat`. The source blob stays in place. Filenames must start with a letter or digit and may
+contain letters, digits, dots, underscores and hyphens.
 
-Before copying, the script checks that the named blob is absent from every selected destination.
-An existing blob or a failed destination check stops the run before any copies are made. AzCopy
-handles a missing source or a transfer failure; its nonzero exit status stops the script. After each
-copy, the script checks that the destination blob exists. A failure during copying can leave copies
-in earlier destinations; select only the outstanding destinations when rerunning. Existing blobs
-are never overwritten.
+Before copying, the script checks that the named blob is absent from AAT. An existing blob or a
+failed destination check stops the run. AzCopy handles a missing source or a transfer failure; its
+nonzero exit status stops the script. After copying, the script checks that the destination blob
+exists. Existing blobs are never overwritten.
 
 The pipeline uses the `hmcts-cftptl-agent-pool` Linux agent pool and the existing
-`DTS-CFTPTL-INTSVC` Azure service connection. Apply the Terraform for production and each
-destination first: it permits the CFT PTL AKS agent subnets through each storage firewall and
-grants that connection's service principal read access to the production container and write
-access to the other environment containers. When another environment is provisioned, apply its
-Terraform, add a boolean checkbox parameter in the pipeline YAML, and include that parameter in
-the `DESTINATION_ENVIRONMENTS` expression. The script accepts any number of destinations and uses
-the `rotasa<environment>` storage account naming convention; it does not need an environment list
-update. Destination selection is controlled by the pipeline, not validated again by the script.
+`DTS-CFTPTL-INTSVC` Azure service connection. Apply the Terraform for Demo and AAT to permit the
+CFT PTL AKS agent subnets through their storage firewalls. The connection's service principal also
+needs read access to the Demo container and write access to the AAT container; the role assignments
+are currently commented out in `storage.tf` and must be provided separately.
 
 ### Differences from the legacy CPP-managed PaaS deployment
 
