@@ -9,7 +9,7 @@ export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 # Check the database backup is valid and contains the public schema
 pg_restore --list --schema=public --strict-names "${DB_BACKUP}" > /dev/null
 
-# Drop public schema in database
+# Drop and recreate public schema in database
 psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname="${DB_NAME}" <<SQL
 -- Check the owner role exists and admin can assume it
 SET ROLE "${DB_OWNER_USER}";
