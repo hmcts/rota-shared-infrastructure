@@ -11,22 +11,6 @@ export DB_ADMIN_USER="${DB_ADMIN_USER:-postgres}"
 export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-${DB_ADMIN_USER}}"
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 
-# Non-production reader and writer database roles
-export DB_ACCESS_READER_ROLE="${DB_ACCESS_READER_ROLE:-DTS CFT DB Access Reader}"
-export DB_ACCESS_WRITER_ROLE="${DB_ACCESS_WRITER_ROLE:-DTS CFT DB Access Writer}"
-export ENABLE_DB_READER_ACCESS="${ENABLE_DB_READER_ACCESS:-true}"
-export ENABLE_DB_WRITER_ACCESS="${ENABLE_DB_WRITER_ACCESS:-false}"
-
-# Create non-production reader role
-if [[ "${ENABLE_DB_READER_ACCESS}" == "true" ]]; then
-  DB_NOLOGIN_ROLE="${DB_ACCESS_READER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
-fi
-
-# Create non-production writer role
-if [[ "${ENABLE_DB_WRITER_ACCESS}" == "true" ]]; then
-  DB_NOLOGIN_ROLE="${DB_ACCESS_WRITER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
-fi
-
 # Portal database environment variables
 export DB_NAME="${PORTAL_DB_NAME:-portaldb}"
 export DB_OWNER_USER="${PORTAL_DB_OWNER_USER:-portal_owner}"
@@ -35,7 +19,7 @@ export DB_APPLICATION_USER="${PORTAL_DB_APPLICATION_USER:-portal_user}"
 export DB_APPLICATION_PASSWORD="${PORTAL_DB_APPLICATION_PASSWORD:-${DB_APPLICATION_USER}}"
 
 # Create portal database
-/usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-database.sh"
+/usr/bin/env bash "${SCRIPTS_DIR}/database-local/create-database.sh"
 
 # Setup portal database
 /usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
@@ -48,7 +32,7 @@ export DB_APPLICATION_USER="${OPTIMISER_DB_APPLICATION_USER:-optimiser_user}"
 export DB_APPLICATION_PASSWORD="${OPTIMISER_DB_APPLICATION_PASSWORD:-${DB_APPLICATION_USER}}"
 
 # Create optimiser database
-/usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-database.sh"
+/usr/bin/env bash "${SCRIPTS_DIR}/database-local/create-database.sh"
 
 # Setup optimiser database
 /usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"

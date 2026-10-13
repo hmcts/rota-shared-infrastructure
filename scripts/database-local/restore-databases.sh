@@ -10,12 +10,6 @@ export PGPORT="${PGPORT:-5432}"
 export DB_ADMIN_USER="${DB_ADMIN_USER:-postgres}"
 export DB_ADMIN_PASSWORD="${DB_ADMIN_PASSWORD:-${DB_ADMIN_USER}}"
 
-# Non-production reader and writer database roles
-export DB_ACCESS_READER_ROLE="${DB_ACCESS_READER_ROLE:-DTS CFT DB Access Reader}"
-export DB_ACCESS_WRITER_ROLE="${DB_ACCESS_WRITER_ROLE:-DTS CFT DB Access Writer}"
-export ENABLE_DB_READER_ACCESS="${ENABLE_DB_READER_ACCESS:-true}"
-export ENABLE_DB_WRITER_ACCESS="${ENABLE_DB_WRITER_ACCESS:-false}"
-
 # Portal database environment variables
 export DB_NAME="${PORTAL_DB_NAME:-portaldb}"
 export DB_OWNER_USER="${PORTAL_DB_OWNER_USER:-portal_owner}"
