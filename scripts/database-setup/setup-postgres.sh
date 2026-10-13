@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+export PGHOST="${PGHOST}"
 export PGPORT="${PGPORT:-5432}"
 export PGPASSWORD="${DB_ADMIN_PASSWORD}"
 
