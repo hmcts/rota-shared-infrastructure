@@ -18,10 +18,14 @@ export ENABLE_DB_READER_ACCESS="${ENABLE_DB_READER_ACCESS:-true}"
 export ENABLE_DB_WRITER_ACCESS="${ENABLE_DB_WRITER_ACCESS:-false}"
 
 # Create non-production reader role
-DB_NOLOGIN_ROLE="${DB_ACCESS_READER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
+if [[ "${ENABLE_DB_READER_ACCESS}" == "true" ]]; then
+  DB_NOLOGIN_ROLE="${DB_ACCESS_READER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
+fi
 
 # Create non-production writer role
-DB_NOLOGIN_ROLE="${DB_ACCESS_WRITER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
+if [[ "${ENABLE_DB_WRITER_ACCESS}" == "true" ]]; then
+  DB_NOLOGIN_ROLE="${DB_ACCESS_WRITER_ROLE}" /usr/bin/env bash "${SCRIPTS_DIR}/database-init/create-nologin-role.sh"
+fi
 
 # Portal database environment variables
 export DB_NAME="${PORTAL_DB_NAME:-portaldb}"
