@@ -22,7 +22,7 @@ export DB_APPLICATION_PASSWORD="${PORTAL_DB_APPLICATION_PASSWORD:-${DB_APPLICATI
 /usr/bin/env bash "${SCRIPTS_DIR}/database-local/create-database.sh"
 
 # Setup portal database
-/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
+/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-database.sh"
 
 # Optimiser database environment variables
 export DB_NAME="${OPTIMISER_DB_NAME:-optimiserdb}"
@@ -35,4 +35,4 @@ export DB_APPLICATION_PASSWORD="${OPTIMISER_DB_APPLICATION_PASSWORD:-${DB_APPLIC
 /usr/bin/env bash "${SCRIPTS_DIR}/database-local/create-database.sh"
 
 # Setup optimiser database
-/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
+/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-database.sh"

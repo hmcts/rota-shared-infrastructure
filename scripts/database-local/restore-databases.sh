@@ -22,7 +22,7 @@ export DB_BACKUP="${PORTAL_DB_BACKUP}"
 /usr/bin/env bash "${SCRIPTS_DIR}/database-restore/restore-database.sh"
 
 # Setup portal database
-/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
+/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-database.sh"
 
 # Optimiser database environment variables
 export DB_NAME="${OPTIMISER_DB_NAME:-optimiserdb}"
@@ -36,4 +36,4 @@ export DB_BACKUP="${OPTIMISER_DB_BACKUP}"
 /usr/bin/env bash "${SCRIPTS_DIR}/database-restore/restore-database.sh"
 
 # Setup optimiser database
-/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-postgres.sh"
+/usr/bin/env bash "${SCRIPTS_DIR}/database-setup/setup-database.sh"

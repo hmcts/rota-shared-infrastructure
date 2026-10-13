@@ -63,7 +63,7 @@ resource "random_password" "optimiser_user" {
 resource "terraform_data" "setup_portal_database" {
   triggers_replace = [
     module.postgresql_dapdb.instance_id,
-    filesha256("${path.module}/scripts/database-setup/setup-postgres.sh"),
+    filesha256("${path.module}/scripts/database-setup/setup-database.sh"),
     random_password.portal_owner.result,
     random_password.portal_user.result,
     local.db_access_reader_role_name,
@@ -73,7 +73,7 @@ resource "terraform_data" "setup_portal_database" {
   ]
 
   provisioner "local-exec" {
-    command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-postgres.sh"
+    command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-database.sh"
 
     environment = {
       PGHOST                  = module.postgresql_dapdb.fqdn
@@ -97,7 +97,7 @@ resource "terraform_data" "setup_portal_database" {
 resource "terraform_data" "setup_optimiser_database" {
   triggers_replace = [
     module.postgresql_dopdb.instance_id,
-    filesha256("${path.module}/scripts/database-setup/setup-postgres.sh"),
+    filesha256("${path.module}/scripts/database-setup/setup-database.sh"),
     random_password.optimiser_owner.result,
     random_password.optimiser_user.result,
     local.db_access_reader_role_name,
@@ -107,7 +107,7 @@ resource "terraform_data" "setup_optimiser_database" {
   ]
 
   provisioner "local-exec" {
-    command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-postgres.sh"
+    command = "/usr/bin/env bash ${path.module}/scripts/database-setup/setup-database.sh"
 
     environment = {
       PGHOST                  = module.postgresql_dopdb.fqdn
