@@ -1,0 +1,32 @@
+trigger: none
+pr: none
+
+parameters:
+  - name: environment
+    displayName: Target environment
+    type: string
+    default: dev
+    values:
+      - dev
+      - sandbox
+      - demo
+      - ithc
+      - perftest
+
+pool:
+  name: hmcts-cftptl-agent-pool
+
+jobs:
+  - job: restore
+    displayName: Restore anonymised database to ${{ parameters.environment }}
+    timeoutInMinutes: 150
+    steps:
+      - task: AzureCLI@2
+        displayName: Restore anonymised database
+        inputs:
+          azureSubscription: DTS-CFTPTL-INTSVC
+          scriptType: bash
+          scriptLocation: scriptPath
+          scriptPath: $(Build.SourcesDirectory)/scripts/restore-anonymised-database.sh
+        env:
+          TARGET_ENVIRONMENT: ${{ parameters.environment }}
