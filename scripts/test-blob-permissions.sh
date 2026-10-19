@@ -14,6 +14,11 @@ download_file="$test_dir/downloaded.txt"
 printf 'Blob upload/download permissions test\nPipeline run: %s\nBlob: %s\n' \
   "${BUILD_BUILDID:-local}" "$blob_name" > "$source_file"
 
+echo 'Azure identity used by the service connection:'
+az account show \
+  --query '{identity:user.name,type:user.type,tenantId:tenantId}' \
+  --output json
+
 echo "Uploading test file to https://${account}.blob.core.windows.net/${container}/${blob_name}"
 az storage blob upload \
   --account-name "$account" \
