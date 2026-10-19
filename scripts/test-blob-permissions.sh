@@ -19,6 +19,15 @@ az account show \
   --query '{identity:user.name,type:user.type,tenantId:tenantId}' \
   --output json
 
+echo 'Resolving the service principal name and object ID for the role assignment:'
+service_principal_id=$(az account show --query user.name --output tsv)
+if ! az ad sp show \
+  --id "$service_principal_id" \
+  --query '{displayName:displayName,objectId:id}' \
+  --output json; then
+  echo 'Could not resolve the service principal. Ask the service connection owner to confirm its object ID.' >&2
+fi
+
 echo "Uploading test file to https://${account}.blob.core.windows.net/${container}/${blob_name}"
 az storage blob upload \
   --account-name "$account" \
