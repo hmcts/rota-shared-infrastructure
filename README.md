@@ -32,6 +32,22 @@ created.
 
 ## Distributing anonymised database dumps
 
+The distribution pipeline is temporarily configured to test Demo blob permissions. Run
+`azure-pipelines-distribute-anonymised-dump.yml` manually without parameters. It runs
+`scripts/test-blob-permissions.sh`, which creates a small, uniquely named file on the agent,
+uploads it to `rotasademo/anonymised-db-dumps`, downloads it and compares the contents. The
+test blob stays in storage for inspection; its URL is printed in the pipeline logs.
+
+The test uses the same `hmcts-cftptl-agent-pool` agent pool and `DTS-CFTPTL-INTSVC` Azure
+service connection as distribution. Both transfers use Azure CLI with `--auth-mode login`
+to test that connection's Microsoft Entra identity. Distribution's AzCopy transfers use
+the same Azure CLI login via `AZCOPY_AUTO_LOGIN_TYPE=AZCLI`.
+
+### Original distribution workflow
+
+The instructions below apply after restoring the pipeline to run
+`scripts/distribute-anonymised-dump.sh` with the original parameters.
+
 Register `azure-pipelines-distribute-anonymised-dump.yml` as a pipeline in the PlatformOperations
 Azure DevOps project. Run it manually with the production `anonymised-db-dumps` blob filename in
 `blobName`, then select the destination checkboxes (`aat`, `demo`, `ithc` and `perftest`). All four
