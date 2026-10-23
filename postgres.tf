@@ -1,4 +1,9 @@
 locals {
+  portal_database_name          = "portaldb"
+  optimiser_database_name       = "optimiserdb"
+  enable_read_only_group_access = true
+  enable_write_group_access     = false
+
   pgsql_query_diagnostics_configuration = var.pgsql_enable_query_diagnostics ? {
     "metrics.collector_database_activity"   = "on"
     "metrics.autovacuum_diagnostics"        = "on"
@@ -66,12 +71,12 @@ module "postgresql_dapdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
-  enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_read_only_group_access = local.enable_read_only_group_access
+  enable_write_group_access     = local.enable_write_group_access
 
   pgsql_databases = [
     {
-      name : "mojdb"
+      name : local.portal_database_name
       schemas_for_reader_access : ["public"]
       schemas_for_writer_access : ["public"]
     }
@@ -116,12 +121,12 @@ module "postgresql_dopdb" {
   business_area       = "cft" # sds or cft
   subnet_suffix       = "expanded"
 
-  enable_read_only_group_access = true
-  enable_write_group_access     = true
+  enable_read_only_group_access = local.enable_read_only_group_access
+  enable_write_group_access     = local.enable_write_group_access
 
   pgsql_databases = [
     {
-      name : "optimiserdb"
+      name : local.optimiser_database_name
       schemas_for_reader_access : ["public"]
       schemas_for_writer_access : ["public"]
     }
