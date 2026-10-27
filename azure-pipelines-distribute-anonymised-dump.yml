@@ -1,18 +1,26 @@
 trigger: none
 pr: none
 
+parameters:
+  - name: blobName
+    displayName: Existing test blob in the Demo anonymised-db-dumps container
+    type: string
+    default: permissions-test-20261022T154543Z-blob-permissions.UNF5qG.txt
+
 pool:
   name: hmcts-cftptl-agent-pool
 
 jobs:
-  - job: test_blob_permissions
-    displayName: Test Demo blob upload and download permissions
+  - job: test_blob_copy
+    displayName: Test Demo-to-AAT blob copy
     timeoutInMinutes: 10
     steps:
       - task: AzureCLI@2
-        displayName: Upload and download a Demo test blob
+        displayName: Copy the Demo test blob to AAT and verify its contents
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
           scriptLocation: scriptPath
-          scriptPath: $(Build.SourcesDirectory)/scripts/test-blob-permissions.sh
+          scriptPath: $(Build.SourcesDirectory)/scripts/test-blob-copy.sh
+        env:
+          BLOB_NAME: ${{ parameters.blobName }}

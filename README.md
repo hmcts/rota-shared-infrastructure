@@ -32,21 +32,26 @@ created.
 
 ## Distributing anonymised database dumps
 
-The distribution pipeline is temporarily configured to test Demo blob permissions. Run
-`azure-pipelines-distribute-anonymised-dump.yml` manually without parameters. It runs
-`scripts/test-blob-permissions.sh`, which creates a small, uniquely named file on the agent,
-uploads it to `rotasademo/anonymised-db-dumps`, downloads it and compares the contents. The
-test blob stays in storage for inspection; its URL is printed in the pipeline logs.
+The distribution pipeline is temporarily configured to test copying a blob from Demo to AAT.
+Run `azure-pipelines-distribute-anonymised-dump.yml` manually with `blobName` set to an existing
+test blob in `rotasademo/anonymised-db-dumps`. The default is the retained test file
+`permissions-test-20261022T154543Z-blob-permissions.UNF5qG.txt`.
+
+`scripts/test-blob-copy.sh` calls the existing distribution script with AAT as its only
+destination, then downloads the Demo source and the AAT copy and compares their contents.
+Both blobs stay in storage for inspection; their URLs are printed in the pipeline logs.
+If the destination blob already exists, the run fails before copying. For another run,
+select a different existing test blob in Demo whose name is absent from AAT.
 
 The test uses the same `hmcts-cftptl-agent-pool` agent pool and `DTS-CFTPTL-INTSVC` Azure
-service connection as distribution. Both transfers use Azure CLI with `--auth-mode login`
-to test that connection's Microsoft Entra identity. Distribution's AzCopy transfers use
-the same Azure CLI login via `AZCOPY_AUTO_LOGIN_TYPE=AZCLI`.
+service connection as distribution. AzCopy uses the Azure CLI login via
+`AZCOPY_AUTO_LOGIN_TYPE=AZCLI`, and the verification downloads use `--auth-mode login`.
 
 ### Original distribution workflow
 
-The instructions below apply after restoring the pipeline to run
-`scripts/distribute-anonymised-dump.sh` with the original parameters.
+The instructions below describe the planned production workflow. They apply after restoring
+the pipeline to run `scripts/distribute-anonymised-dump.sh` with the original parameters and
+changing that script's `source_account` from `rotasademo` to `rotasaprod` once provisioned.
 
 Register `azure-pipelines-distribute-anonymised-dump.yml` as a pipeline in the PlatformOperations
 Azure DevOps project. Run it manually with the production `anonymised-db-dumps` blob filename in
