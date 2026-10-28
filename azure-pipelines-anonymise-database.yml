@@ -1,0 +1,18 @@
+trigger: none
+pr: none
+
+pool:
+  name: hmcts-cftptl-agent-pool
+
+jobs:
+  - job: anonymise
+    displayName: Anonymise production database
+    timeoutInMinutes: 150
+    steps:
+      - task: AzureCLI@2
+        displayName: Anonymise database
+        inputs:
+          azureSubscription: DTS-CFTPTL-INTSVC
+          scriptType: bash
+          scriptLocation: scriptPath
+          scriptPath: $(Build.SourcesDirectory)/scripts/anonymise-database.sh
