@@ -2,7 +2,7 @@
 set -euo pipefail
 
 container=anonymised-db-dumps
-source_account=rotasademo # change to prod once created
+source_account=rotasaprod
 
 if [[ ! ${BLOB_NAME:-} =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
   echo 'BLOB_NAME must be a single filename containing only letters, digits, dots, underscores or hyphens.' >&2
