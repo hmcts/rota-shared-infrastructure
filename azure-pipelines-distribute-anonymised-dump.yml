@@ -3,7 +3,7 @@ pr: none
 
 parameters:
   - name: blobName
-    displayName: Filename of the anonymised dump in the PRD container
+    displayName: Filename of the PRD dump (.backup.enc added automatically)
     type: string
     default: ''
 

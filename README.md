@@ -34,8 +34,10 @@ created.
 
 Register `azure-pipelines-distribute-anonymised-dump.yml` as a pipeline in the PlatformOperations
 Azure DevOps project. Run it manually from the desired branch and enter the existing PRD
-`anonymised-db-dumps` blob filename in `blobName`. The filename is required and must start with
-a letter or digit; it may contain letters, digits, dots, underscores and hyphens.
+`anonymised-db-dumps` blob filename in `blobName`, with or without the `.backup.enc` suffix.
+The script appends `.backup.enc` if needed: entering `rota-20261029` selects the existing blob
+`rota-20261029.backup.enc`. The filename is required and must start with a letter or digit;
+it may contain letters, digits, dots, underscores and hyphens.
 
 The pipeline runs `scripts/distribute-anonymised-dump.sh` to copy that one blob from
 `rotasaprod/anonymised-db-dumps` to `rotasaaat/anonymised-db-dumps`. AAT is the only destination
