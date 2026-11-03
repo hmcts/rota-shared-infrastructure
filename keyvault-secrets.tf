@@ -93,3 +93,83 @@ resource "azurerm_key_vault_secret" "dopdb_postgresql_fqdn" {
 
   tags = local.merged_common_tags
 }
+
+resource "azurerm_key_vault_secret" "portal_owner_username" {
+  name         = "portal-owner-username"
+  value        = local.portal_owner_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "portal_owner_password" {
+  name         = "portal-owner-password"
+  value        = random_password.portal_owner.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "portal_user_username" {
+  name         = "portal-user-username"
+  value        = local.portal_user_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "portal_user_password" {
+  name         = "portal-user-password"
+  value        = random_password.portal_user.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_owner_username" {
+  name         = "optimiser-owner-username"
+  value        = local.optimiser_owner_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_owner_password" {
+  name         = "optimiser-owner-password"
+  value        = random_password.optimiser_owner.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_user_username" {
+  name         = "optimiser-user-username"
+  value        = local.optimiser_user_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_user_password" {
+  name         = "optimiser-user-password"
+  value        = random_password.optimiser_user.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
