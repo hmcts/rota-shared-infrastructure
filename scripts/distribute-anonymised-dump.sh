@@ -2,12 +2,14 @@
 set -euo pipefail
 
 container=anonymised-db-dumps
-source_account=rotasademo # change to prod once created
+source_account=rotasaprod
 
 if [[ ! ${BLOB_NAME:-} =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
-  echo 'BLOB_NAME must be a single filename containing only letters, digits, dots, underscores or hyphens.' >&2
+  echo 'BLOB_NAME must start with a letter or digit and contain only letters, digits, dots, underscores or hyphens.' >&2
   exit 1
 fi
+
+BLOB_NAME="${BLOB_NAME%.backup.enc}.backup.enc"
 
 read -r -a destinations <<< "${DESTINATION_ENVIRONMENTS:-}"
 if (( ${#destinations[@]} == 0 )); then

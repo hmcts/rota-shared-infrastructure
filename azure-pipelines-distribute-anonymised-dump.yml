@@ -1,18 +1,27 @@
 trigger: none
 pr: none
 
+parameters:
+  - name: blobName
+    displayName: Filename of the PRD dump (.backup.enc added automatically)
+    type: string
+    default: ''
+
 pool:
   name: hmcts-cftptl-agent-pool
 
 jobs:
-  - job: test_blob_permissions
-    displayName: Test Demo blob upload and download permissions
-    timeoutInMinutes: 10
+  - job: distribute
+    displayName: Copy anonymised dump from PRD to AAT
+    timeoutInMinutes: 150
     steps:
       - task: AzureCLI@2
-        displayName: Upload and download a Demo test blob
+        displayName: Copy the selected PRD dump to AAT
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
           scriptLocation: scriptPath
-          scriptPath: $(Build.SourcesDirectory)/scripts/test-blob-permissions.sh
+          scriptPath: $(Build.SourcesDirectory)/scripts/distribute-anonymised-dump.sh
+        env:
+          BLOB_NAME: ${{ parameters.blobName }}
+          DESTINATION_ENVIRONMENTS: aat
