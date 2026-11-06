@@ -170,9 +170,13 @@ reviewed for any additional files it creates outside these known locations.
 - Supply a compatible package version and repository URL. Inspect `rota_anonymisation` to confirm
   its database username, dependencies, failure behaviour and CSV interpretation. If needed, seed a
   password secret in `rota-shared-prod` for the required database user and select it in the pipeline.
-- Create the `anonymised-db-dump-encryption-password` secret in `rota-shared-prod` (or select an
-  existing dedicated secret through `encryptionPasswordSecret`) and grant the connection read access.
-  Retain the password/secret version for restoring older backups after a rotation.
+- Apply the production Terraform to create `anonymised-db-dump-encryption-password` in
+  `rota-shared-prod`, and grant the connection read access. `keyvault-secrets.tf` generates a stable
+  64-character password only for `prod`; the password and secret resources use `prevent_destroy`
+  to guard against accidental replacement or deletion. An existing dedicated secret can instead be
+  selected through `encryptionPasswordSecret`. Retain the password/secret versions for restores
+  after any deliberate rotation. The generated password is also stored in Terraform state, so
+  restrict access to that state as for the existing database credentials.
 - Provision PostgreSQL 15 clients, OpenSSL supporting the requested PBKDF2 options, Azure CLI,
   `curl`, `tar` and `flock` on the Linux agent. Ensure it has enough temporary disk space for the
   package and full encrypted dump, and verify the OpenSSL version used by the restore agent.
