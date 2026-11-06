@@ -7,6 +7,8 @@ umask 077
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
+production_subscription=8999dec3-0104-4a27-94ee-6588559729d1 # DCD-CNP-Prod
+artifactory_url=https://artifactory.platform.hmcts.net/artifactory
 source_server=rota-psql-dapdb-prod
 resource_group=rota-shared-infra-prod
 key_vault=rota-shared-prod
@@ -30,7 +32,6 @@ initialise_run_paths() {
 
   work_dir="${AGENT_TEMPDIRECTORY}/rota-anonymise-${RUN_ID}"
   package_dir="$work_dir/work/package"
-  checks_dir="$work_dir/checks"
   restore_marker="$work_dir/restore-requested"
   temporary_server="rota-dapdb-anon-${RUN_ID}"
 }
@@ -44,26 +45,16 @@ fail() {
 }
 
 validate_inputs() {
-  local uuid_pattern='^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$'
-  local timestamp_pattern='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
   local version_pattern='^[0-9][A-Za-z0-9._-]*$'
 
-  if [[ ! ${PRODUCTION_SUBSCRIPTION_ID:-} =~ $uuid_pattern ]]; then
-    fail 'A production subscription UUID is required.'
-  fi
-  if [[ ! ${PITR_TIMESTAMP:-} =~ $timestamp_pattern ]]; then
-    fail 'PITR_TIMESTAMP must use YYYY-MM-DDTHH:mm:ssZ.'
-  fi
+  : "${PITR_TIMESTAMP:?PITR_TIMESTAMP is required}"
   if [[ ! ${ANONYMISATION_VERSION:-} =~ $version_pattern || ${ANONYMISATION_VERSION:-} == *SNAPSHOT* ]]; then
     fail 'Specify an exact released anonymisation package version; snapshots are not supported.'
   fi
-  if [[ ${REPOSITORY_URL:-} != https://* ]]; then
-    fail 'REPOSITORY_URL must use HTTPS.'
-  fi
-  if [[ ! ${PUBLISH_DUMP:-false} =~ ^([Tt]rue|[Ff]alse)$ ]]; then
-    fail 'PUBLISH_DUMP must be true or false.'
-  fi
   : "${POSTGRESQL_HOME:?POSTGRESQL_HOME is required}"
+  if [[ -z ${ANONYMISATION_PASSWORD_SECRET:-} ]]; then
+    fail 'Specify the Key Vault password secret for moj_user.'
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -76,16 +67,13 @@ check_dependencies() {
   export PATH="${postgres_bin}:${PATH}"
   export LD_LIBRARY_PATH="${POSTGRESQL_HOME}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
-  for tool in az curl tar flock openssl; do
+  for tool in az curl tar flock openssl awk; do
     if ! command -v "$tool" >/dev/null; then
       fail "Missing required tool: ${tool}."
     fi
   done
 
-  for tool in psql pg_dump pg_restore; do
-    if [[ ! -x "$postgres_bin/$tool" ]]; then
-      fail "Missing PostgreSQL client: ${postgres_bin}/${tool}."
-    fi
+  for tool in psql pg_dump; do
     if [[ ! $("$postgres_bin/$tool" --version) =~ PostgreSQL\)\ 15\. ]]; then
       fail "${tool} must be PostgreSQL 15."
     fi
@@ -101,7 +89,7 @@ remove_temporary_database() {
   if [[ ! -f $restore_marker ]]; then
     return 0
   fi
-  if ! az account set --subscription "$PRODUCTION_SUBSCRIPTION_ID"; then
+  if ! az account set --subscription "$production_subscription"; then
     return 1
   fi
   if ! existing_server=$(az postgres flexible-server list \
@@ -126,61 +114,26 @@ remove_temporary_database() {
   rm -f -- "$restore_marker"
 }
 
-# Recheck ownership under the lock so the separate cleanup task cannot delete
-# another run's report when recovering from an interrupted process.
-remove_checks_report() {
-  local report_owner
-
-  if [[ ${checks_lock_held:-false} != true ]]; then
-    if [[ ! -d $work_dir || ! -f ${checks_report}.lock ]]; then
-      return 0
-    fi
-    if ! report_owner=$(cat "${checks_report}.lock"); then
-      return 1
-    fi
-    if [[ $report_owner != "$RUN_ID" ]]; then
-      return 0
-    fi
-    if ! exec 9>>"${checks_report}.lock"; then
-      return 1
-    fi
-    if ! flock -n 9; then
-      echo "Checks report is still in use; inspect ${checks_report} manually." >&2
-      return 1
-    fi
-    if ! report_owner=$(cat "${checks_report}.lock"); then
-      return 1
-    fi
-    if [[ $report_owner != "$RUN_ID" ]]; then
-      return 0
-    fi
-    checks_lock_held=true
-  fi
-
-  rm -f -- "$checks_report"
+lock_checks_report() {
+  exec 9>>"${checks_report}.lock" || return 1
+  flock -n 9
 }
 
 cleanup() {
-  local preserve_checks=${1:-false}
   local status=0
 
   # Remove local data before waiting for Azure server deletion.
-  if ! remove_checks_report; then
+  if [[ ${checks_lock_held:-false} == true ]] || lock_checks_report; then
+    rm -f -- "$checks_report" || status=1
+  else
+    echo "Checks report is still in use; inspect ${checks_report} manually." >&2
     status=1
   fi
-  if ! rm -rf -- "$work_dir/work"; then
+  rm -rf -- "$work_dir/work" || status=1
+  if remove_temporary_database; then
+    rm -rf -- "$work_dir" || status=1
+  else
     status=1
-  fi
-  if [[ $preserve_checks != true ]]; then
-    if ! rm -rf -- "$checks_dir"; then
-      status=1
-    fi
-  fi
-  if ! remove_temporary_database; then
-    status=1
-  fi
-  if (( status != 0 )); then
-    rm -rf -- "$checks_dir" || status=1
   fi
   if (( status != 0 )); then
     echo "Cleanup failed. Check ${work_dir}, ${checks_report} and temporary server ${resource_group}/${temporary_server} manually." >&2
@@ -190,38 +143,28 @@ cleanup() {
 
 on_exit() {
   local status=$?
-  local preserve_checks=false
   trap - EXIT
 
-  if (( status == 0 )); then
-    preserve_checks=true
-  fi
-  if ! cleanup "$preserve_checks"; then
+  if ! cleanup; then
     status=1
-  fi
-  if (( status == 0 )); then
-    echo '##vso[task.setvariable variable=anonymisationChecksAvailable]true'
   fi
   exit "$status"
 }
 
 prepare_workspace() {
-  # The legacy package writes a fixed CSV path. Lock it so concurrent runs on
-  # this host cannot read each other's report, and discard any stale report.
-  exec 9>>"${checks_report}.lock"
-  if ! flock -n 9; then
+  # The legacy package writes a fixed CSV path. Keep it exclusive while running.
+  if ! lock_checks_report; then
     fail 'Another anonymisation is using the same checks report path.'
   fi
   if [[ -e $work_dir ]]; then
     fail "Run directory already exists: ${work_dir}. Use a new job attempt."
   fi
-  mkdir -p "$package_dir" "$checks_dir"
+  mkdir -p "$package_dir"
 
   trap on_exit EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
   checks_lock_held=true
-  printf '%s\n' "$RUN_ID" > "${checks_report}.lock"
   rm -f -- "$checks_report"
 }
 
@@ -237,24 +180,17 @@ read_secret() {
 }
 
 load_credentials() {
-  local source_host
   export PGSSLMODE=require PGCONNECT_TIMEOUT=10 PGPORT=5432 PGDATABASE=mojdb
-  az account set --subscription "$PRODUCTION_SUBSCRIPTION_ID"
-
-  source_host=$(read_secret dapdb-postgresql-fqdn)
-  if [[ $source_host != "${source_server}.postgres.database.azure.com" ]]; then
-    fail 'DAPDB hostname does not match the expected new production server.'
-  fi
+  az account set --subscription "$production_subscription"
 
   admin_user=$(read_secret dapdb-postgresql-admin-username)
   admin_password=$(read_secret dapdb-postgresql-admin-password)
-  anonymisation_user=${ANONYMISATION_USER:-$admin_user}
-  anonymisation_password=$(read_secret "${ANONYMISATION_PASSWORD_SECRET:-dapdb-postgresql-admin-password}")
+  anonymisation_password=$(read_secret "$ANONYMISATION_PASSWORD_SECRET")
   if [[ -z $admin_user || -z $admin_password || -z $anonymisation_password ]]; then
     fail 'Database credentials must not be empty.'
   fi
 
-  encryption_password=$(read_secret "${ENCRYPTION_PASSWORD_SECRET:-anonymised-db-dump-encryption-password}")
+  encryption_password=$(read_secret anonymised-db-dump-encryption-password)
   if [[ -z $encryption_password ]]; then
     fail 'The backup encryption password must not be empty.'
   fi
@@ -266,7 +202,11 @@ load_credentials() {
 download_package() {
   local package_name="rotadb-migration-${ANONYMISATION_VERSION}-anonymisation.tar.gz"
   local artifact_path=com/moj/magsrota/portal/build/rotadb-migration
-  local package_url="${REPOSITORY_URL%/}/${artifact_path}/${ANONYMISATION_VERSION}/${package_name}"
+  local repository=${ARTIFACTORY_REPOSITORY:-}
+  if [[ -z $repository ]]; then
+    fail 'Set the Artifactory repository name in the pipeline YAML after publishing the package.'
+  fi
+  local package_url="${artifactory_url}/${repository}/${artifact_path}/${ANONYMISATION_VERSION}/${package_name}"
   local curl_args=(--fail --location --silent --show-error)
 
   # Azure DevOps leaves an undefined optional secret variable as its literal macro.
@@ -349,46 +289,36 @@ wait_for_database() {
 # Database anonymisation
 # -----------------------------------------------------------------------------
 run_anonymisation() {
-  local pipeline_status=(0 0)
-  local diagnostics_file="$checks_dir/anonymisation_${RUN_ID}.log.enc"
+  # The legacy package omits ON_ERROR_STOP. Its psql calls read this startup
+  # file so SQL-file errors stop the package instead of allowing a partial run.
+  printf '\\set ON_ERROR_STOP on\n' > "$work_dir/work/psqlrc"
 
   echo "Running anonymisation package ${ANONYMISATION_VERSION} against ${temporary_server}."
-  # Capture both output streams before they reach the pipeline log. Do not
-  # create a plaintext log, even when the anonymiser prints errors or secrets.
-  (
+  # Raw output can contain production data. Discard it instead of retaining logs.
+  if ! (
     cd "$package_dir" || exit 1
-    export PGHOST="$temporary_host" PGUSER="$anonymisation_user" PGPASSWORD="$anonymisation_password"
+    export PGHOST="$temporary_host" PGUSER=moj_user PGPASSWORD="$anonymisation_password"
+    export PSQLRC="$work_dir/work/psqlrc"
     "$anonymiser" "$temporary_host"
-  ) 2>&1 |
-    ENCPASSWORD="$encryption_password" openssl enc \
-      "${encryption_options[@]}" \
-      -out "$diagnostics_file" 2>/dev/null || pipeline_status=("${PIPESTATUS[@]}")
-
-  if (( pipeline_status[1] != 0 )); then
-    fail 'Could not encrypt anonymisation diagnostics; no dump will be uploaded.'
-  fi
-  if (( pipeline_status[0] != 0 )); then
-    fail "Anonymisation failed with exit status ${pipeline_status[0]}; no dump will be uploaded."
-  fi
-  if [[ ! -s $checks_report ]]; then
-    fail 'Anonymisation did not produce a nonempty checks CSV; no dump will be uploaded.'
+  ) >/dev/null 2>&1; then
+    fail 'Anonymisation failed; no dump will be uploaded.'
   fi
 }
 
 # -----------------------------------------------------------------------------
-# Checks report encryption
+# Anonymisation results validation
 # -----------------------------------------------------------------------------
-encrypt_checks_report() {
-  local encrypted_report="$checks_dir/rota_anonymised_database_checks_${RUN_ID}.csv.enc"
-
-  if ! ENCPASSWORD="$encryption_password" openssl enc \
-    "${encryption_options[@]}" \
-    -in "$checks_report" \
-    -out "$encrypted_report" 2>/dev/null; then
-    fail 'Could not encrypt the checks report; no dump will be uploaded.'
-  fi
-  if [[ ! -s $encrypted_report ]]; then
-    fail 'Checks report encryption produced an empty file; no dump will be uploaded.'
+validate_anonymisation_report() {
+  # The legacy report contains three plain fields: table, column and failure count.
+  if ! awk -F, '
+    NR == 1 {
+      if ($0 != "Table Name,Column Name,Anonymisation Failures") exit 1
+      next
+    }
+    NF != 3 || $1 == "" || $2 == "" || $3 != "0" { exit 1 }
+    END { if (NR < 2) exit 1 }
+  ' "$checks_report" 2>/dev/null; then
+    fail 'Anonymisation checks failed or the CSV is invalid; no dump will be created or uploaded.'
   fi
   if ! rm -f -- "$checks_report"; then
     fail 'Could not remove the plaintext checks report; no dump will be uploaded.'
@@ -399,13 +329,12 @@ encrypt_checks_report() {
 # Dump creation and encryption
 # -----------------------------------------------------------------------------
 create_encrypted_dump() {
-  local pipeline_status=(0 0)
   blob_name="mojdb_anonymised_$(date -u +%Y-%m-%d_%H-%M-%S)_${RUN_ID}.backup.enc"
   encrypted_dump_file="$work_dir/work/$blob_name"
 
   # pipefail stops the run if either pg_dump or OpenSSL fails. Plaintext goes
   # directly through the pipe and is never written to a backup file.
-  PGPASSWORD="$admin_password" "$postgres_bin/pg_dump" \
+  if ! PGPASSWORD="$admin_password" "$postgres_bin/pg_dump" \
     -w \
     --host="$temporary_host" \
     --username="$admin_user" \
@@ -414,46 +343,15 @@ create_encrypted_dump() {
     -Fc 2>/dev/null |
     ENCPASSWORD="$encryption_password" openssl enc \
       "${encryption_options[@]}" \
-      -out "$encrypted_dump_file" 2>/dev/null || pipeline_status=("${PIPESTATUS[@]}")
-
-  if (( pipeline_status[1] != 0 )); then
-    fail 'Backup encryption failed; no dump will be uploaded.'
-  fi
-  if (( pipeline_status[0] != 0 )); then
-    fail 'Database dump failed; no dump will be uploaded.'
-  fi
-  if [[ ! -s $encrypted_dump_file ]]; then
-    fail 'OpenSSL produced an empty encrypted dump.'
+      -out "$encrypted_dump_file" 2>/dev/null; then
+    fail 'Database dump or encryption failed; no dump will be uploaded.'
   fi
 }
 
 # -----------------------------------------------------------------------------
-# Encrypted dump validation
+# Blob upload
 # -----------------------------------------------------------------------------
-validate_encrypted_dump() {
-  if ! ENCPASSWORD="$encryption_password" openssl enc \
-    -d \
-    "${encryption_options[@]}" \
-    -in "$encrypted_dump_file" 2>/dev/null |
-    (
-      "$postgres_bin/pg_restore" --list >/dev/null 2>/dev/null || exit 1
-      # pg_restore only reads the archive contents list. Drain the remaining
-      # stream so OpenSSL can finish without a broken pipe on large backups.
-      cat >/dev/null
-    ); then
-    fail 'Encrypted backup validation failed; no dump will be uploaded.'
-  fi
-}
-
-# -----------------------------------------------------------------------------
-# Blob upload and verification
-# -----------------------------------------------------------------------------
-publication_enabled() {
-  [[ ${PUBLISH_DUMP:-false} == [Tt]rue ]]
-}
-
 upload_dump() {
-  local remote_size local_size
   az storage blob upload \
     --account-name "$storage_account" \
     --container-name "$container" \
@@ -465,18 +363,6 @@ upload_dump() {
     --if-none-match '*' \
     --validate-content \
     --output none
-
-  remote_size=$(az storage blob show \
-    --account-name "$storage_account" \
-    --container-name "$container" \
-    --name "$blob_name" \
-    --auth-mode login \
-    --query properties.contentLength \
-    --output tsv)
-  local_size=$(wc -c < "$encrypted_dump_file" | tr -d '[:space:]')
-  if [[ $remote_size != "$local_size" ]]; then
-    fail 'Uploaded blob size does not match the local dump; investigate the blob before distribution.'
-  fi
 
   echo "Uploaded https://${storage_account}.blob.core.windows.net/${container}/${blob_name}"
   echo "##vso[task.setvariable variable=anonymisedDumpBlobName]${blob_name}"
@@ -509,14 +395,13 @@ main() {
   restore_database
   wait_for_database
   run_anonymisation
-  encrypt_checks_report
+  validate_anonymisation_report
   create_encrypted_dump
-  validate_encrypted_dump
 
-  if publication_enabled; then
+  if [[ ${PUBLISH_DUMP:-false} == [Tt]rue ]]; then
     upload_dump
   else
-    echo 'Validation run complete. Upload is disabled; review the checks artifact and package before enabling publishDump.'
+    echo 'Anonymisation checks and encrypted dump creation succeeded. Upload is disabled.'
   fi
 }
 

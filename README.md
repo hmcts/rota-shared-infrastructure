@@ -31,186 +31,80 @@ DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` 
 created.
 
 ## Producing an anonymised production database dump
+## Producing an anonymised production database dump
 
-Register `azure-pipelines-anonymise-database.yml` as a manually run pipeline in the
-PlatformOperations Azure DevOps project. It uses `hmcts-cftptl-agent-pool` and the existing
-`DTS-CFTPTL-INTSVC` service connection. Supply the production subscription explicitly; the script
-switches from the service connection's default subscription before accessing production resources.
+Register `azure-pipelines-anonymise-database.yml` as a manual pipeline in PlatformOperations.
+It uses `hmcts-cftptl-agent-pool`, the `DTS-CFTPTL-INTSVC` service connection and the fixed
+`DCD-CNP-Prod` subscription (`8999dec3-0104-4a27-94ee-6588559729d1`).
 
-This reproduces `automation.ansible/sp-ansible/rota_flexible_anondb.yml` for the new infrastructure:
+The workflow follows the legacy Ansible process:
 
-1. Read the DAPDB hostname and admin credentials from `rota-shared-prod` Key Vault.
-2. Restore `rota-psql-dapdb-prod` at the supplied UTC timestamp into
-   `rota-dapdb-anon-<Build.BuildId>-<System.JobAttempt>` in `rota-shared-infra-prod`.
-3. Run the existing `rota_anonymisation` package against the temporary server, streaming its stdout
-   and stderr directly into an encrypted diagnostic log. Encrypt its checks CSV and delete the
-   plaintext CSV before creating the backup.
-4. Stream only `mojdb`'s `public` schema in PostgreSQL custom format directly into OpenSSL, using
-   AES-256-CTR, PBKDF2 with 600,000 iterations, SHA-512 and a random salt. No plaintext backup file is
-   written to the agent. Decrypt through a pipe to check the archive contents with `pg_restore --list`.
-5. When `publishDump` is enabled, upload only the completed `.backup.enc` file to
-   `rotasaprod/anonymised-db-dumps` without overwriting,
-   then check the remote blob size against the local file size.
-6. Delete the temporary server and local package/dump files. The pipeline retries cleanup in an
-   `always()` step using a fresh Azure login. After a successful workflow, encrypted checks and
-   diagnostics are published as a pipeline artifact; failed workflows discard them. Final cleanup
-   removes the local encrypted files.
+1. Restore `rota-psql-dapdb-prod` to a temporary server in `rota-shared-infra-prod`.
+2. Run the versioned `rota_anonymisation` package against that temporary server.
+3. Require successful anonymisation and zero failures in its checks CSV, then delete the CSV.
+4. Stream a custom-format dump of `mojdb.public` directly through OpenSSL encryption.
+5. When enabled, upload the `.backup.enc` file to `rotasaprod/anonymised-db-dumps`.
+6. Remove local working files and delete the temporary server, on success or failure.
 
-The original server is only read for restore metadata; anonymisation and `pg_dump` target the
-temporary server. Only the encrypted dump is held on the Azure DevOps agent during creation/upload.
-Its blob filename includes UTC time, build ID and job attempt, for example
-`mojdb_anonymised_2026-10-29_12-30-00_12345-1.backup.enc`.
-
-### Pipeline inputs and assumptions
-
-| Input | Required value |
+| Pipeline input | Value |
 | --- | --- |
-| `productionSubscriptionId` | Subscription UUID containing the new production resources. |
-| `pitrTimestamp` | Available restore point in UTC, formatted `YYYY-MM-DDTHH:mm:ssZ`. |
-| `anonymisationVersion` | Exact released `rotadb-migration` version compatible with the source schema. `latest` and snapshots are not supported. |
-| `repositoryUrl` | Reachable HTTPS Maven repository root, ending in `/repocentral`. |
-| `postgresqlHome` | Agent directory containing PostgreSQL 15 `bin/psql`, `bin/pg_dump` and `bin/pg_restore`. |
-| `anonymisationUser` | Defaults to `pgadmin`, the new DAPDB admin. Override if the package requires a different user such as `moj_user`. |
-| `anonymisationPasswordSecret` | Defaults to `dapdb-postgresql-admin-password`. Override with the Key Vault secret holding the chosen user's password. |
-| `encryptionPasswordSecret` | Defaults to `anonymised-db-dump-encryption-password` in `rota-shared-prod`. This is a separate backup encryption password. |
-| `publishDump` | Defaults to `false`. Enable only after validating the package and its checks report. |
+| `pitrTimestamp` | Available restore point in UTC (`YYYY-MM-DDTHH:mm:ssZ`). |
+| `anonymisationVersion` | Exact released package version matching the database schema; snapshots are unsupported. |
+| `postgresqlHome` | Agent directory containing PostgreSQL 15 `bin/psql` and `bin/pg_dump`. |
+| `anonymisationPasswordSecret` | Secret in `rota-shared-prod` holding the restored database's `moj_user` password. |
+| `publishDump` | Defaults to `false`: run anonymisation and create the encrypted dump, then delete it without uploading. |
 
-The package coordinates match Ansible:
+The Artifactory host is fixed to `https://artifactory.platform.hmcts.net/artifactory`.
+The package has not been published yet. Set `artifactoryRepository` in the pipeline YAML when its
+Maven repository is known. The coordinates match Ansible:
 `com.moj.magsrota.portal.build:rotadb-migration:<version>:anonymisation:tar.gz`.
-It must extract an executable `rota_anonymisation` at its root. The pipeline calls it with the
-temporary server's hostname and supplies `POSTGRESQL_HOME`, `PGHOST`, `PGUSER`, `PGDATABASE=mojdb`,
-`PGPASSWORD` and `PGSSLMODE=require`. It also adds the PostgreSQL client `bin` and `lib` directories
-to `PATH` and `LD_LIBRARY_PATH`. If Artifactory needs authentication, define the secret pipeline
-variable `rotaAnonymisationArtifactoryToken`; otherwise leave it undefined.
+If authentication is required, set the secret pipeline variable `rotaAnonymisationArtifactoryToken`.
 
-The package itself has not yet been inspected. Its user handling and additional dependencies remain
-assumptions to verify. The pipeline requires a zero exit status and a nonempty
-`/tmp/rota_anonymised_database_checks.csv`, but does **not** interpret the CSV or establish that
-personal data has been removed. A host-level lock prevents concurrent runs from sharing that fixed
-report path. A validation run (`publishDump=false`) still restores, anonymises, encrypts and validates
-the dump, then deletes it without uploading. Decrypt and review the retained checks artifact in a
-protected environment before publishing.
+The package must contain executable `rota_anonymisation` at its root and produce
+`/tmp/rota_anonymised_database_checks.csv`. The inspected legacy script hardcodes `moj_user`.
+The wrapper supplies its password and a temporary `PSQLRC` enabling `ON_ERROR_STOP`; the published
+package must read that startup file or explicitly enable `ON_ERROR_STOP` itself.
+The CSV must have the legacy `Table Name,Column Name,Anonymisation Failures` header and at least one
+check, with every failure count zero. These checks depend on the package's coverage of personal data.
 
-### Encryption, restore compatibility and failure cleanup
+### Encryption and cleanup
 
-`pg_dump` writes to a pipe feeding this command, with `ENCPASSWORD` supplied only to the OpenSSL
-process from the configured Key Vault secret:
+The password comes from `anonymised-db-dump-encryption-password` in `rota-shared-prod`, created by
+Terraform for production. The dump streams into:
 
 ```bash
 openssl enc -aes-256-ctr -pbkdf2 -iter 600000 -md sha512 -salt \
   -out "$FILENAME.backup.enc" -pass env:ENCPASSWORD
 ```
 
-The script uses `pipefail` so a failed `pg_dump` cannot be hidden by successful encryption of an
-incomplete stream. Both encryption and decrypted archive-list validation must succeed before upload.
-The entire decrypted stream is drained without writing a plaintext file. This checks archive
-readability, rather than performing a full restore or proving anonymisation. AES-CTR encryption does
-not authenticate the backup; the archive check is not a cryptographic tamper-detection mechanism.
+No plaintext backup file is created. Raw anonymiser output is discarded to keep its production data
+out of pipeline logs; checks and diagnostic artifacts are not retained. The package's plaintext CSV
+is deleted after validation, with a small lock protecting its fixed path during execution and cleanup.
+Dump or encryption failure prevents upload. The upload refuses to overwrite existing blobs.
 
-The same encryption settings and Key Vault password protect the retained diagnostics and checks:
+Exit/signal traps perform cleanup, and a final `always()` task retries with a fresh Azure login.
+Cleanup errors fail the job and identify the temporary server and local paths. Agent loss or an
+Azure deletion failure can still leave a temporary server requiring manual deletion. The legacy
+package writes its CSV before validation; forced agent loss can prevent its removal. Only encrypted
+files are uploaded, and a failed run may leave an encrypted blob.
 
-- `anonymisation_<run-id>.log.enc` contains the anonymiser's combined stdout and stderr. Its raw output
-  never passes through the pipeline logger or a plaintext log file.
-- `rota_anonymised_database_checks_<run-id>.csv.enc` contains the checks report. Encryption must
-  succeed, and the original CSV must be deleted, before the backup is created or uploaded.
+Restore tooling must use the same password and OpenSSL options, adding `-d` to decrypt. Preserve the
+password versions needed for retained backups and verify OpenSSL compatibility with the restore
+agent. AES-CTR does not authenticate the backup, and this pipeline does not perform a test restore.
 
-The existing `anonymisation-checks-<run-id>` pipeline artifact contains only these encrypted files.
-It is published only after success, and final cleanup removes the local copies. On failure both
-encrypted outputs are discarded along with the other temporary files. Anonymisation or diagnostic
-encryption failure stops the workflow; successful log encryption cannot hide an anonymiser failure.
+### Before the first run
 
-Pipeline output contains workflow status and generic failures instead of raw anonymiser output.
-The script disables inherited shell tracing before handling credentials or data.
-Database-client stderr from connection checks, dumping and archive validation is suppressed because
-it can include database details. Those failures produce generic messages, without retaining that
-client stderr. Diagnostic encryption errors are also suppressed and replaced with a generic failure.
-
-The package still writes its original CSV to `/tmp/rota_anonymised_database_checks.csv` while running.
-Encrypting and deleting that file afterwards cannot prevent exposure from an interrupted agent
-before encryption. The package's additional file writes remain unverified. Inspect the package and
-verify protected temporary storage before relying on this workflow for production data handling.
-
-Restores need the same encryption password and PBKDF2 settings. Preserve the Key Vault secret
-version/password used for every retained backup. Verify OpenSSL version and salt-length compatibility
-between the encrypting and restoring agents. For example, to inspect the decrypted archive:
-
-```bash
-set -o pipefail
-openssl enc -d -aes-256-ctr -pbkdf2 -iter 600000 -md sha512 -salt \
-  -in "$FILENAME.backup.enc" -pass env:ENCPASSWORD |
-  (pg_restore --list && cat >/dev/null)
-```
-
-For a checks report or diagnostic log, use the same OpenSSL decryption options with the appropriate
-`.csv.enc` or `.log.enc` input and omit `pg_restore`. Treat decrypted diagnostics as production data;
-inspect them in a protected environment and never print them into pipeline logs.
-
-The legacy encrypted-backup restore command omits `-pbkdf2 -iter 600000`; it must be updated before
-reading backups produced here. The new infrastructure's restore pipeline will also need decryption
-support before these dumps can be restored.
-
-On a detected workflow failure, cleanup removes this run's package files, partial encrypted dump,
-encrypted reports/diagnostics and plaintext checks report, and attempts to delete the temporary
-database server. Local data is removed before waiting for Azure deletion. The separate cleanup task
-also recovers a fixed-path CSV
-left by an interrupted run, using the lock's run ID to avoid deleting another run's report. Only
-successfully completed workflows publish encrypted checks and diagnostics; the final task deletes
-the local copies even if report publication fails.
-
-This workflow never uploads a plaintext backup or report to the dump container, so it creates no
-plaintext blobs requiring deletion. Existing blobs from other runs are outside its cleanup scope.
-A failed upload or a later failure can leave an encrypted blob, which should be checked before use.
-Agent loss, forced termination or denied deletion can still require manual cleanup; cleanup errors
-fail the job and identify the affected paths and server. The external anonymisation package must be
-reviewed for any additional files it creates outside these known locations.
-
-### Setup and first-run checklist
-
-- Register/authorize the pipeline and the `DTS-CFTPTL-INTSVC` service connection.
-- Supply a compatible package version and repository URL. Inspect `rota_anonymisation` to confirm
-  its database username, dependencies, failure behaviour and CSV interpretation. If needed, seed a
-  password secret in `rota-shared-prod` for the required database user and select it in the pipeline.
-- Apply the production Terraform to create `anonymised-db-dump-encryption-password` in
-  `rota-shared-prod`, and grant the connection read access. `keyvault-secrets.tf` generates a stable
-  64-character password only for `prod`; the password and secret resources use `prevent_destroy`
-  to guard against accidental replacement or deletion. An existing dedicated secret can instead be
-  selected through `encryptionPasswordSecret`. Retain the password/secret versions for restores
-  after any deliberate rotation. The generated password is also stored in Terraform state, so
-  restrict access to that state as for the existing database credentials.
-- Provision PostgreSQL 15 clients, OpenSSL supporting the requested PBKDF2 options, Azure CLI,
-  `curl`, `tar` and `flock` on the Linux agent. Ensure it has enough temporary disk space for the
-  package and full encrypted dump, and verify the OpenSSL version used by the restore agent.
-- Apply the production Terraform after reviewing its plan. `storage.tf` grants the connection's
-  principal `Storage Blob Data Contributor` on the dump container so it can upload and read dumps;
-  the role is also used for distribution in other environments. It grants no server-management or
-  Key Vault permissions.
-- Separately grant that principal access to the required Key Vault secrets and permission to read
-  the source server and create/delete temporary PostgreSQL servers in `rota-shared-infra-prod`.
-  Include the delegated subnet/private DNS permissions needed for restoring the private server.
-- Verify agent DNS/routing to the restored PostgreSQL server, Key Vault, Artifactory and Blob Storage.
-  Restores use the source server's network configuration. Confirm subnet capacity and restore quota.
-- Select a restore timestamp within retention. Credentials must match that restore point; a password
-  rotation since that timestamp can make the current Key Vault password unsuitable for the clone.
-- Run with `publishDump=false`, decrypt and review the checks CSV in a protected environment, and
-  verify the package's anonymisation results.
-  Once validated, rerun with `publishDump=true` and check the reported blob filename.
-- Check that the temporary server was removed. Cleanup failures fail the job and identify its name.
-  Agent loss, forced termination or an in-progress Azure restore can require manual cleanup; use
-  `az postgres flexible-server delete --resource-group rota-shared-infra-prod --name <temporary-server> --yes`.
-- Before distributing the new production dump, update `source_account` in
-  `scripts/distribute-anonymised-dump.sh` from `rotasademo` to `rotasaprod`; the existing distribution
-  pipeline still copies Demo to AAT.
-
-Azure CLI references: [PostgreSQL restore](https://learn.microsoft.com/en-us/cli/azure/postgres/flexible-server#az-postgres-flexible-server-restore)
-and [blob upload](https://learn.microsoft.com/en-us/cli/azure/storage/blob#az-storage-blob-upload).
-Encryption reference: [OpenSSL enc](https://docs.openssl.org/3.6/man1/openssl-enc/).
-
-Local verification: run `bash -n scripts/anonymise-database.sh` and
-`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v`. The tests use fake Azure and
-PostgreSQL commands and a fixture package; they do not contact Azure or validate the real anonymiser.
-They cover streaming failures and cleanup, and include an encryption/decryption round trip using
-real OpenSSL when it is installed. Sensitive fixture values in stdout, stderr and CSV content are
-checked against pipeline output and retained files; only decrypted encrypted artifacts contain them.
+- Publish the package and set `artifactoryRepository`; provide the `moj_user` password secret.
+- Review and apply production Terraform for the encryption secret and container access. The generated
+  password is held in Terraform state; retain it for restores and protect access to that state.
+- Authorise the service connection to read the Key Vault secrets, restore/delete temporary servers,
+  and upload blobs. Include the delegated subnet/private DNS permissions needed by the restore.
+- Ensure the agent has PostgreSQL 15 clients, OpenSSL, Azure CLI, `awk`, `curl`, `tar` and `flock`,
+  sufficient temporary disk space, and network access to the private database and Azure services.
+- Start with `publishDump=false`, confirm package compatibility and cleanup, then enable upload.
+  Passwords must match the selected restore point.
+- Before distributing production dumps, change `source_account` in
+  `scripts/distribute-anonymised-dump.sh` from `rotasademo` to `rotasaprod`.
 
 ## Distributing anonymised database dumps
 
