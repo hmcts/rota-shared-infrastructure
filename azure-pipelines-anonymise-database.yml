@@ -1,18 +1,94 @@
 trigger: none
 pr: none
 
+parameters:
+  - name: productionSubscriptionId
+    displayName: Subscription containing the new production DAPDB server
+    type: string
+    default: ''
+  - name: pitrTimestamp
+    displayName: Restore point in UTC (YYYY-MM-DDTHH:mm:ssZ)
+    type: string
+    default: ''
+  - name: anonymisationVersion
+    displayName: Released rotadb-migration anonymisation package version
+    type: string
+    default: ''
+  - name: repositoryUrl
+    displayName: Artifactory Maven repository URL (ending in /repocentral)
+    type: string
+    default: ''
+  - name: postgresqlHome
+    displayName: PostgreSQL 15 client directory (containing bin/psql and bin/pg_dump)
+    type: string
+    default: ''
+  - name: anonymisationUser
+    displayName: Anonymisation database user
+    type: string
+    default: pgadmin
+  - name: anonymisationPasswordSecret
+    displayName: Password secret in rota-shared-prod for the anonymisation user
+    type: string
+    default: dapdb-postgresql-admin-password
+  - name: publishDump
+    displayName: Upload dump to production Blob Storage (enable after package validation)
+    type: boolean
+    default: false
+  - name: encryptionPasswordSecret
+    displayName: Backup encryption password secret in rota-shared-prod
+    type: string
+    default: anonymised-db-dump-encryption-password
+
 pool:
   name: hmcts-cftptl-agent-pool
+
+variables:
+  anonymisationRunId: $(Build.BuildId)-$(System.JobAttempt)
 
 jobs:
   - job: anonymise
     displayName: Anonymise production database
-    timeoutInMinutes: 150
+    timeoutInMinutes: 360
+    cancelTimeoutInMinutes: 30
     steps:
       - task: AzureCLI@2
-        displayName: Anonymise database
+        displayName: Restore, anonymise and encrypt production mojdb
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
           scriptLocation: scriptPath
           scriptPath: $(Build.SourcesDirectory)/scripts/anonymise-database.sh
+        env:
+          RUN_ID: $(anonymisationRunId)
+          PRODUCTION_SUBSCRIPTION_ID: ${{ parameters.productionSubscriptionId }}
+          PITR_TIMESTAMP: ${{ parameters.pitrTimestamp }}
+          ANONYMISATION_VERSION: ${{ parameters.anonymisationVersion }}
+          REPOSITORY_URL: ${{ parameters.repositoryUrl }}
+          POSTGRESQL_HOME: ${{ parameters.postgresqlHome }}
+          ANONYMISATION_USER: ${{ parameters.anonymisationUser }}
+          ANONYMISATION_PASSWORD_SECRET: ${{ parameters.anonymisationPasswordSecret }}
+          ENCRYPTION_PASSWORD_SECRET: ${{ parameters.encryptionPasswordSecret }}
+          ARTIFACTORY_TOKEN: $(rotaAnonymisationArtifactoryToken)
+          PUBLISH_DUMP: ${{ parameters.publishDump }}
+
+      - task: PublishPipelineArtifact@1
+        displayName: Retain encrypted checks and diagnostics after success
+        condition: and(succeeded(), eq(variables['anonymisationChecksAvailable'], 'true'))
+        inputs:
+          targetPath: $(Agent.TempDirectory)/rota-anonymise-$(anonymisationRunId)/checks
+          artifact: anonymisation-checks-$(anonymisationRunId)
+
+      # Remove the local report after publication, or discard it after a failure.
+      # Retry server cleanup with a fresh Azure login if the main task was interrupted.
+      - task: AzureCLI@2
+        displayName: Remove temporary database server, local files and checks report
+        condition: always()
+        inputs:
+          azureSubscription: DTS-CFTPTL-INTSVC
+          scriptType: bash
+          scriptLocation: scriptPath
+          scriptPath: $(Build.SourcesDirectory)/scripts/anonymise-database.sh
+          arguments: cleanup
+        env:
+          RUN_ID: $(anonymisationRunId)
+          PRODUCTION_SUBSCRIPTION_ID: ${{ parameters.productionSubscriptionId }}
