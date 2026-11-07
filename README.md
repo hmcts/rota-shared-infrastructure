@@ -31,7 +31,6 @@ DAPDB for compatibility. Explicit `dapdb-postgresql-*` and `dopdb-postgresql-*` 
 created.
 
 ## Producing an anonymised production database dump
-## Producing an anonymised production database dump
 
 Register `azure-pipelines-anonymise-database.yml` as a manual pipeline in PlatformOperations.
 It uses `hmcts-cftptl-agent-pool`, the `DTS-CFTPTL-INTSVC` service connection and the fixed
@@ -43,16 +42,24 @@ The workflow follows the legacy Ansible process:
 2. Run the versioned `rota_anonymisation` package against that temporary server.
 3. Require successful anonymisation and zero failures in its checks CSV, then delete the CSV.
 4. Stream a custom-format dump of `mojdb.public` directly through OpenSSL encryption.
-5. When enabled, upload the `.backup.enc` file to `rotasaprod/anonymised-db-dumps`.
+5. Upload the `.backup.enc` file to `rotasaprod/anonymised-db-dumps`.
 6. Remove local working files and delete the temporary server, on success or failure.
 
 | Pipeline input | Value |
 | --- | --- |
 | `pitrTimestamp` | Available restore point in UTC (`YYYY-MM-DDTHH:mm:ssZ`). |
 | `anonymisationVersion` | Exact released package version matching the database schema; snapshots are unsupported. |
+
+Set these one-time variables in the pipeline YAML before running:
+
+| Configuration | Value |
+| --- | --- |
+| `artifactoryRepository` | Maven repository containing the released anonymisation package. |
 | `postgresqlHome` | Agent directory containing PostgreSQL 15 `bin/psql` and `bin/pg_dump`. |
 | `anonymisationPasswordSecret` | Secret in `rota-shared-prod` holding the restored database's `moj_user` password. |
-| `publishDump` | Defaults to `false`: run anonymisation and create the encrypted dump, then delete it without uploading. |
+
+These settings are intentionally blank until their values are confirmed. Every successful run uploads
+the encrypted dump; there is no separate upload switch.
 
 The Artifactory host is fixed to `https://artifactory.platform.hmcts.net/artifactory`.
 The package has not been published yet. Set `artifactoryRepository` in the pipeline YAML when its
@@ -94,14 +101,15 @@ agent. AES-CTR does not authenticate the backup, and this pipeline does not perf
 
 ### Before the first run
 
-- Publish the package and set `artifactoryRepository`; provide the `moj_user` password secret.
+- Publish the package and configure `artifactoryRepository`, `postgresqlHome` and
+  `anonymisationPasswordSecret` once in the pipeline YAML.
 - Review and apply production Terraform for the encryption secret and container access. The generated
   password is held in Terraform state; retain it for restores and protect access to that state.
 - Authorise the service connection to read the Key Vault secrets, restore/delete temporary servers,
   and upload blobs. Include the delegated subnet/private DNS permissions needed by the restore.
 - Ensure the agent has PostgreSQL 15 clients, OpenSSL, Azure CLI, `awk`, `curl`, `tar` and `flock`,
   sufficient temporary disk space, and network access to the private database and Azure services.
-- Start with `publishDump=false`, confirm package compatibility and cleanup, then enable upload.
+- Confirm package compatibility before running; a successful run uploads the encrypted backup.
   Passwords must match the selected restore point.
 - Before distributing production dumps, change `source_account` in
   `scripts/distribute-anonymised-dump.sh` from `rotasademo` to `rotasaprod`.

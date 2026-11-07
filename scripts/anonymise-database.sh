@@ -45,39 +45,25 @@ fail() {
 }
 
 validate_inputs() {
-  local version_pattern='^[0-9][A-Za-z0-9._-]*$'
-
   : "${PITR_TIMESTAMP:?PITR_TIMESTAMP is required}"
-  if [[ ! ${ANONYMISATION_VERSION:-} =~ $version_pattern || ${ANONYMISATION_VERSION:-} == *SNAPSHOT* ]]; then
-    fail 'Specify an exact released anonymisation package version; snapshots are not supported.'
+  : "${ANONYMISATION_VERSION:?ANONYMISATION_VERSION is required}"
+  if [[ $ANONYMISATION_VERSION == *SNAPSHOT* ]]; then
+    fail 'Snapshot package versions are not supported.'
   fi
   : "${POSTGRESQL_HOME:?POSTGRESQL_HOME is required}"
   if [[ -z ${ANONYMISATION_PASSWORD_SECRET:-} ]]; then
-    fail 'Specify the Key Vault password secret for moj_user.'
+    fail 'Set anonymisationPasswordSecret in the pipeline configuration for moj_user.'
   fi
 }
 
 # -----------------------------------------------------------------------------
-# Dependency checks
+# PostgreSQL client environment
 # -----------------------------------------------------------------------------
-check_dependencies() {
-  local tool
+configure_postgresql() {
   postgres_bin="${POSTGRESQL_HOME}/bin"
   export POSTGRESQL_HOME
   export PATH="${postgres_bin}:${PATH}"
   export LD_LIBRARY_PATH="${POSTGRESQL_HOME}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-
-  for tool in az curl tar flock openssl awk; do
-    if ! command -v "$tool" >/dev/null; then
-      fail "Missing required tool: ${tool}."
-    fi
-  done
-
-  for tool in psql pg_dump; do
-    if [[ ! $("$postgres_bin/$tool" --version) =~ PostgreSQL\)\ 15\. ]]; then
-      fail "${tool} must be PostgreSQL 15."
-    fi
-  done
 }
 
 # -----------------------------------------------------------------------------
@@ -387,7 +373,7 @@ main() {
   esac
 
   validate_inputs
-  check_dependencies
+  configure_postgresql
   prepare_workspace
   load_credentials
   check_source_server
@@ -398,11 +384,7 @@ main() {
   validate_anonymisation_report
   create_encrypted_dump
 
-  if [[ ${PUBLISH_DUMP:-false} == [Tt]rue ]]; then
-    upload_dump
-  else
-    echo 'Anonymisation checks and encrypted dump creation succeeded. Upload is disabled.'
-  fi
+  upload_dump
 }
 
 main "$@"

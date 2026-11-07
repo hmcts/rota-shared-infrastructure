@@ -10,26 +10,16 @@ parameters:
     displayName: Released rotadb-migration anonymisation package version
     type: string
     default: ''
-  - name: postgresqlHome
-    displayName: PostgreSQL 15 client directory (containing bin/psql and bin/pg_dump)
-    type: string
-    default: ''
-  - name: anonymisationPasswordSecret
-    displayName: Password secret in rota-shared-prod for moj_user
-    type: string
-    default: ''
-  - name: publishDump
-    displayName: Upload encrypted dump to production Blob Storage
-    type: boolean
-    default: false
 
 pool:
   name: hmcts-cftptl-agent-pool
 
 variables:
   anonymisationRunId: $(Build.BuildId)-$(System.JobAttempt)
-  # Set once to the Maven repository name when the anonymisation package is published.
+  # One-time configuration: Maven repository, PostgreSQL client home and moj_user secret name.
   artifactoryRepository: ''
+  postgresqlHome: ''
+  anonymisationPasswordSecret: ''
 
 jobs:
   - job: anonymise
@@ -49,10 +39,9 @@ jobs:
           PITR_TIMESTAMP: ${{ parameters.pitrTimestamp }}
           ANONYMISATION_VERSION: ${{ parameters.anonymisationVersion }}
           ARTIFACTORY_REPOSITORY: $(artifactoryRepository)
-          POSTGRESQL_HOME: ${{ parameters.postgresqlHome }}
-          ANONYMISATION_PASSWORD_SECRET: ${{ parameters.anonymisationPasswordSecret }}
+          POSTGRESQL_HOME: $(postgresqlHome)
+          ANONYMISATION_PASSWORD_SECRET: $(anonymisationPasswordSecret)
           ARTIFACTORY_TOKEN: $(rotaAnonymisationArtifactoryToken)
-          PUBLISH_DUMP: ${{ parameters.publishDump }}
 
       # Retry server cleanup with a fresh Azure login if the main task was interrupted.
       - task: AzureCLI@2
