@@ -1,18 +1,26 @@
 trigger: none
 pr: none
 
+parameters:
+  - name: blobName
+    displayName: Name of the anonymised dump in the Demo container
+    type: string
+    default: ''
+
 pool:
   name: hmcts-cftptl-agent-pool
 
 jobs:
-  - job: test_blob_permissions
-    displayName: Test Demo blob upload and download permissions
-    timeoutInMinutes: 10
+  - job: distribute
+    displayName: Copy Demo anonymised dump to AAT
+    timeoutInMinutes: 150
     steps:
       - task: AzureCLI@2
-        displayName: Upload and download a Demo test blob
+        displayName: Copy dump to AAT
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
           scriptLocation: scriptPath
-          scriptPath: $(Build.SourcesDirectory)/scripts/test-blob-permissions.sh
+          scriptPath: $(Build.SourcesDirectory)/scripts/distribute-anonymised-dump.sh
+        env:
+          BLOB_NAME: ${{ parameters.blobName }}

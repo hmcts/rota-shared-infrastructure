@@ -29,7 +29,8 @@ data "azuread_service_principal" "dump_distribution" {
 }
 
 resource "azurerm_role_assignment" "dump_distribution" {
+  # The same connection uploads anonymised dumps in production and distributes them.
   scope                = "${module.blobstore.storageaccount_id}/blobServices/default/containers/${azurerm_storage_container.anonymised_db_dumps.name}"
-  role_definition_name = var.env == "prod" ? "Storage Blob Data Reader" : "Storage Blob Data Contributor"
+  role_definition_name = "Storage Blob Data Contributor"
   principal_id         = data.azuread_service_principal.dump_distribution.object_id
 }
