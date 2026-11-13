@@ -54,12 +54,15 @@ Set these one-time variables in the pipeline YAML before running:
 
 | Configuration | Value |
 | --- | --- |
-| `artifactoryRepository` | Maven repository containing the released anonymisation package. |
-| `postgresqlHome` | Agent directory containing PostgreSQL 15 `bin/psql` and `bin/pg_dump`. |
-| `anonymisationPasswordSecret` | Secret in `rota-shared-prod` holding the restored database's `moj_user` password. |
+| `artifactoryRepository` | Replace `REPLACE_WITH_MAVEN_REPOSITORY` with the Maven repository containing the released anonymisation package. |
+| `postgresqlHome` | Set to `/usr`, using the agent's packaged `/usr/bin/psql` and `/usr/bin/pg_dump` commands. |
+| `anonymisationPasswordSecret` | Set to `portal-owner-password` in `rota-shared-prod`, holding the restored database's `portal_owner` password. |
 
-These settings are intentionally blank until their values are confirmed. Every successful run uploads
-the encrypted dump; there is no separate upload switch.
+The Artifactory repository remains a placeholder. The PostgreSQL path and password-secret name are
+configured. Every successful run uploads the encrypted dump; there is no separate upload switch.
+
+The [agent Dockerfile](https://github.com/hmcts/azure-devops-agent/blob/main/Dockerfile) installs
+Ubuntu's `postgresql-client` package; its client version follows the agent image.
 
 The Artifactory host is fixed to `https://artifactory.platform.hmcts.net/artifactory`.
 The package has not been published yet. Set `artifactoryRepository` in the pipeline YAML when its
@@ -68,9 +71,10 @@ Maven repository is known. The coordinates match Ansible:
 If authentication is required, set the secret pipeline variable `rotaAnonymisationArtifactoryToken`.
 
 The package must contain executable `rota_anonymisation` at its root and produce
-`/tmp/rota_anonymised_database_checks.csv`. The inspected legacy script hardcodes `moj_user`.
-The wrapper supplies its password and a temporary `PSQLRC` enabling `ON_ERROR_STOP`; the published
-package must read that startup file or explicitly enable `ON_ERROR_STOP` itself.
+`/tmp/rota_anonymised_database_checks.csv`. Before publishing, replace the legacy script's hardcoded
+`-U moj_user` with `-U "$PGUSER"`, remove the SQL's `OWNER TO moj_user`, and enable `ON_ERROR_STOP=1`
+on every `psql` invocation. The wrapper supplies `PGUSER=portal_owner` and its Key Vault password;
+the package must handle SQL failures itself, without a temporary `PSQLRC` workaround.
 The CSV must have the legacy `Table Name,Column Name,Anonymisation Failures` header and at least one
 check, with every failure count zero. These checks depend on the package's coverage of personal data.
 
@@ -90,6 +94,8 @@ is deleted after validation, with a small lock protecting its fixed path during 
 Dump or encryption failure prevents upload. The upload refuses to overwrite existing blobs.
 
 Exit/signal traps perform cleanup, and a final `always()` task retries with a fresh Azure login.
+The job allows two hours, with 30 minutes for cancellation cleanup, within the agent's three-hour
+lifetime. Longer runs require extending the agent lifetime before increasing the pipeline timeout.
 Cleanup errors fail the job and identify the temporary server and local paths. Agent loss or an
 Azure deletion failure can still leave a temporary server requiring manual deletion. The legacy
 package writes its CSV before validation; forced agent loss can prevent its removal. Only encrypted
@@ -101,13 +107,15 @@ agent. AES-CTR does not authenticate the backup, and this pipeline does not perf
 
 ### Before the first run
 
-- Publish the package and configure `artifactoryRepository`, `postgresqlHome` and
-  `anonymisationPasswordSecret` once in the pipeline YAML.
+- Update and publish the package as described above, then replace the `artifactoryRepository`
+  placeholder in the pipeline YAML. The agent client path and password-secret name are already set.
+- Ensure the database-users configuration providing `portal_owner` and `portal-owner-password` has
+  been applied in production, and the restored database uses that ownership model.
 - Review and apply production Terraform for the encryption secret and container access. The generated
   password is held in Terraform state; retain it for restores and protect access to that state.
 - Authorise the service connection to read the Key Vault secrets, restore/delete temporary servers,
   and upload blobs. Include the delegated subnet/private DNS permissions needed by the restore.
-- Ensure the agent has PostgreSQL 15 clients, OpenSSL, Azure CLI, `awk`, `curl`, `tar` and `flock`,
+- Ensure the agent has PostgreSQL clients, OpenSSL, Azure CLI, `awk`, `curl`, `tar` and `flock`,
   sufficient temporary disk space, and network access to the private database and Azure services.
 - Confirm package compatibility before running; a successful run uploads the encrypted backup.
   Passwords must match the selected restore point.

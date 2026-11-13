@@ -16,15 +16,17 @@ pool:
 
 variables:
   anonymisationRunId: $(Build.BuildId)-$(System.JobAttempt)
-  # One-time configuration: Maven repository, PostgreSQL client home and moj_user secret name.
-  artifactoryRepository: ''
-  postgresqlHome: ''
-  anonymisationPasswordSecret: ''
+  # Placeholder: replace with the Maven repository name once the package is published.
+  artifactoryRepository: 'REPLACE_WITH_MAVEN_REPOSITORY'
+  # The Ubuntu agent installs postgresql-client, exposing commands under /usr/bin.
+  postgresqlHome: '/usr'
+  anonymisationPasswordSecret: 'portal-owner-password'
 
 jobs:
   - job: anonymise
     displayName: Anonymise production database
-    timeoutInMinutes: 360
+    # The disposable agent has a three-hour lifetime; leave time for cleanup and startup.
+    timeoutInMinutes: 120
     cancelTimeoutInMinutes: 30
     steps:
       - task: AzureCLI@2

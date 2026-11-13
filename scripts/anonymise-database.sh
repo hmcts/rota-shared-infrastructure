@@ -52,7 +52,7 @@ validate_inputs() {
   fi
   : "${POSTGRESQL_HOME:?POSTGRESQL_HOME is required}"
   if [[ -z ${ANONYMISATION_PASSWORD_SECRET:-} ]]; then
-    fail 'Set anonymisationPasswordSecret in the pipeline configuration for moj_user.'
+    fail 'Set anonymisationPasswordSecret in the pipeline configuration for portal_owner.'
   fi
 }
 
@@ -275,16 +275,11 @@ wait_for_database() {
 # Database anonymisation
 # -----------------------------------------------------------------------------
 run_anonymisation() {
-  # The legacy package omits ON_ERROR_STOP. Its psql calls read this startup
-  # file so SQL-file errors stop the package instead of allowing a partial run.
-  printf '\\set ON_ERROR_STOP on\n' > "$work_dir/work/psqlrc"
-
   echo "Running anonymisation package ${ANONYMISATION_VERSION} against ${temporary_server}."
   # Raw output can contain production data. Discard it instead of retaining logs.
   if ! (
     cd "$package_dir" || exit 1
-    export PGHOST="$temporary_host" PGUSER=moj_user PGPASSWORD="$anonymisation_password"
-    export PSQLRC="$work_dir/work/psqlrc"
+    export PGHOST="$temporary_host" PGUSER=portal_owner PGPASSWORD="$anonymisation_password"
     "$anonymiser" "$temporary_host"
   ) >/dev/null 2>&1; then
     fail 'Anonymisation failed; no dump will be uploaded.'
