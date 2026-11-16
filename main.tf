@@ -4,7 +4,7 @@ locals {
     stg      = "staging"
     staging  = "staging"
     demo     = "demo"
-    ithc     = "ITHC"
+    ithc     = "ithc"
     test     = "testing"
     perftest = "testing"
     prod     = "production"
