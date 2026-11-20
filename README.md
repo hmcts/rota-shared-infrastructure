@@ -157,6 +157,120 @@ CFT PTL AKS agent subnets through their storage firewalls. The connection's serv
 needs read access to the Demo container and write access to the AAT container; `storage.tf` now
 provides container-scoped contributor access when each environment's Terraform is applied.
 
+## Restoring a non-production environment
+
+Register `azure-pipelines-restore-anonymised-database.yml` as a manual pipeline in
+PlatformOperations. It uses `DTS-CFTPTL-INTSVC` and `hmcts-cftptl-agent-pool`.
+
+| Pipeline input | Value |
+| --- | --- |
+| `environment` | Target environment: `dev`, `sandbox`, `aat`, `demo`, `ithc` or `perftest`. |
+| `blobName` | Exact decrypted PostgreSQL backup filename in `rotasa<environment>/anonymised-db-dumps`. |
+| `targetSubscription` | Subscription ID containing the target PostgreSQL servers, Key Vault and blob store. |
+| `aksSubscription` | Subscription ID containing both target AKS clusters. |
+
+The source blob store follows the target environment and uses `targetSubscription`. For example,
+a `perftest` restore reads from `rotasaperftest/anonymised-db-dumps` in the supplied perftest
+subscription. The selected dump must already be present in that environment's container.
+Download the encrypted dump from AAT after anonymisation, decrypt it locally, then upload the
+decrypted PostgreSQL custom-format archive manually to each required non-production environment's
+blob store. For example, upload `mojdb_anonymised.backup` after decrypting its `.backup.enc` file.
+The restore pipeline reads that archive directly. It requires no encryption password, OpenSSL,
+production subscription or production Key Vault access. The filename must be a single name using
+letters, digits, dots, underscores or hyphens; `pg_restore` validates its actual archive contents.
+An encrypted file is rejected during preflight, regardless of its filename. Production targets
+are excluded by the environment allowlist.
+
+The pipeline follows the database reset/restore sequence from Ansible, adapted to the new structure:
+
+1. Download the decrypted dump, read the complete archive, and check target database access.
+2. Discover both `cft-<environment>-00-aks` and `cft-<environment>-01-aks` in the supplied AKS
+   subscription. Acquire locks in both clusters before reading the original workload/controller
+   settings. Save both snapshots locally and in the locks before changing any workloads.
+3. Suspend the Rota Flux Kustomization and HelmReleases,
+   pause KEDA and CronJobs, drain active Jobs, and scale Deployments and StatefulSets to zero.
+   Require all non-completed pods in both clusters to stop before changing either database.
+4. Replace `mojdb.public` on `rota-psql-dapdb-<environment>` using the selected dump. Restore objects
+   as `portal_owner`, without importing production ownership or ACLs.
+5. Rebuild an empty `optimiserdb.public` on `rota-psql-dopdb-<environment>`. The new optimiser owns
+   its schema migrations; the legacy `optimisationdb` and `persistdb` databases are not recreated.
+6. Restore every originally enabled optimiser across both clusters and wait for readiness/Flyway
+   before restarting any consumers. Then restore the remaining replica counts and controller
+   settings. Workloads that were stopped remain stopped. At least one optimiser must have a
+   positive replica count before starting a restore; if both are zero, preflight releases its
+   locks and fails before changing workloads or either database.
+
+The databases themselves are retained, preserving their locale, database-level grants and settings.
+Each schema rebuild runs in a transaction. Target schema ownership, schema grants, schema-scoped
+default grants and the configured PostgreSQL extensions are restored, with owner/application grants
+matching the new database-users setup. The portal and optimiser schema transactions are separate.
+The existing HA configuration is retained. The downloaded plaintext archive is stored in the run's
+private agent directory and removed by cleanup, including when database restoration fails. It is
+never included in the recovery artifact. Archive listing and import read the downloaded file by
+filename, avoiding early-reader pipe failures on large dumps.
+
+### Restore prerequisites
+
+- Apply the database-user setup from `dev/PET-8240-database-users` to the target first. This restore
+  branch does not provision users or reset their passwords. It requires `portal_owner`, `portal_user`,
+  `optimiser_owner` and `optimiser_user`, with each database administrator able to assume its owner role.
+- Allow the service connection to read the target's `dapdb-postgresql-*` and `dopdb-postgresql-*`
+  Key Vault secrets and blobs in the target environment's container.
+- Give that identity AKS credential access and Kubernetes permissions in both clusters to read
+  workloads, patch Deployments/StatefulSets/HelmReleases/CronJobs/KEDA resources, manage the restore
+  ConfigMap (create, patch and delete), and suspend the `rota` Kustomization in `flux-system`. Server-side dry runs check the
+  patch permissions before shutdown.
+- Provide network access from the agent to the target environment's storage, both private PostgreSQL
+  servers, both Kubernetes APIs and Key Vault. The agent needs Azure CLI, `kubectl`, `kubelogin`, Python 3
+  and PostgreSQL 15 `pg_restore` plus `psql`. The YAML sets `postgresqlHome` to
+  `/usr/lib/postgresql/15`; install that client version in the agent image or update the path.
+  Produce dumps with PostgreSQL 15 `pg_dump` as well; archives from newer clients can be incompatible.
+- Both cluster names above must exist. Unexpected DaemonSets or HPAs with `minReplicas: 0` cause
+  preflight failure and need a reviewed maintenance policy. Active Jobs have ten minutes to drain.
+- Avoid deployments and manual workload changes during restoration. Confirm the restore fits the
+  two-hour job timeout and the disposable agent's three-hour lifetime before using a large dump.
+
+### Failure and recovery
+
+A shutdown failure before database work restores the original workload settings. A failed database
+transaction rolls back that schema, but a later failure may follow an already committed schema in
+the other database. In that case the pipeline deliberately leaves both clusters stopped.
+If an enabled optimiser fails its readiness check during recovery, consumers and job producers
+remain stopped and the locks remain in place so recovery can be retried. No consumer in either
+cluster is restarted until all originally enabled optimisers are ready.
+
+Exit traps and a final `always()` task retry workload recovery after successful database work.
+The pipeline publishes `database-restore-<build>-<attempt>` containing the original settings and
+database progress markers, without credentials or database contents. Recovery errors fail the job.
+
+For an incomplete restore, repair/re-run the database work while the environment remains stopped.
+Once both databases are consistent, authenticate to the two clusters, set `KUBECONFIG`, and run:
+
+```bash
+python3 scripts/restore-workloads.py resume /path/to/workloads.json
+```
+
+The command checks resource UIDs and the run's lock before restoring settings; it can be retried.
+If an agent is lost before publishing the artifact, each cluster's `rota/rota-database-restore`
+ConfigMap contains `run-id` and, once snapshots are complete, `workload-state`. Reconstruct the recovery
+JSON with that `run_id` and a `clusters` array containing the two saved `workload-state` objects,
+including their `shutdown_started` flags. A lock without a snapshot was acquired before workload
+changes; represent it with its `context`, `locked: true` and `shutdown_started: false`. Recovery
+releases owned locks for untouched clusters without applying settings. Do not delete another run's
+locks or resume after an incomplete database restore until database consistency has been verified.
+
+Run the offline recovery checks with:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts/tests -v
+```
+
+Optional PostgreSQL 15 integration tests use `RESTORE_TEST_SOCKET`, `RESTORE_TEST_PORT` and
+`RESTORE_TEST_CLIENT_BIN`. Use a disposable local server. The suite refuses to start if any fixture
+database or role name already exists, tracks successful fixture creation and removes only those
+created fixtures. Its uncompressed synthetic archive is larger than 16 MiB to exercise preflight
+and import beyond pipe-buffer sizes.
+
 ### Differences from the legacy CPP-managed PaaS deployment
 
 The HMCTS PostgreSQL module used for AKS-hosted applications does not expose every integration option

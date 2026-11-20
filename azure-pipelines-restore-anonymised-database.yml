@@ -9,20 +9,40 @@ parameters:
     values:
       - dev
       - sandbox
+      - aat
       - demo
       - ithc
       - perftest
+  - name: blobName
+    displayName: Decrypted PostgreSQL backup filename in the target environment's blob store
+    type: string
+    default: ''
+  - name: targetSubscription
+    displayName: Target PostgreSQL, Key Vault and blob storage subscription ID
+    type: string
+    default: ''
+  - name: aksSubscription
+    displayName: Target AKS subscription ID (both active clusters)
+    type: string
+    default: ''
 
 pool:
   name: hmcts-cftptl-agent-pool
 
+variables:
+  restoreRunId: $(Build.BuildId)-$(System.JobAttempt)
+  # Match the PostgreSQL 15 servers and avoid newer pg_restore SQL dialects.
+  postgresqlHome: /usr/lib/postgresql/15
+
 jobs:
   - job: restore
     displayName: Restore anonymised database to ${{ parameters.environment }}
-    timeoutInMinutes: 150
+    # Disposable agents live for three hours; reserve time for recovery.
+    timeoutInMinutes: 120
+    cancelTimeoutInMinutes: 30
     steps:
       - task: AzureCLI@2
-        displayName: Restore anonymised database
+        displayName: Validate dump, stop Rota, restore mojdb and rebuild optimiserdb
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
@@ -30,3 +50,29 @@ jobs:
           scriptPath: $(Build.SourcesDirectory)/scripts/restore-anonymised-database.sh
         env:
           TARGET_ENVIRONMENT: ${{ parameters.environment }}
+          TARGET_SUBSCRIPTION: ${{ parameters.targetSubscription }}
+          AKS_SUBSCRIPTION: ${{ parameters.aksSubscription }}
+          BLOB_NAME: ${{ parameters.blobName }}
+          RUN_ID: $(restoreRunId)
+          POSTGRESQL_HOME: $(postgresqlHome)
+
+      - task: AzureCLI@2
+        displayName: Recover workload settings and clean local files
+        condition: always()
+        inputs:
+          azureSubscription: DTS-CFTPTL-INTSVC
+          scriptType: bash
+          scriptLocation: scriptPath
+          scriptPath: $(Build.SourcesDirectory)/scripts/restore-anonymised-database.sh
+          arguments: cleanup
+        env:
+          TARGET_ENVIRONMENT: ${{ parameters.environment }}
+          AKS_SUBSCRIPTION: ${{ parameters.aksSubscription }}
+          RUN_ID: $(restoreRunId)
+
+      - task: PublishPipelineArtifact@1
+        displayName: Save workload recovery record
+        condition: and(always(), eq(variables.restoreStateReady, 'true'))
+        inputs:
+          targetPath: $(Agent.TempDirectory)/rota-restore-$(restoreRunId)/state
+          artifact: database-restore-$(restoreRunId)
