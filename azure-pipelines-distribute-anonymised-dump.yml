@@ -12,11 +12,11 @@ pool:
 
 jobs:
   - job: test_blob_copy
-    displayName: Test Demo-to-AAT blob copy
+    displayName: Test Demo-to-Prod blob copy
     timeoutInMinutes: 10
     steps:
       - task: AzureCLI@2
-        displayName: Copy the Demo test blob to AAT and verify its contents
+        displayName: Copy the Demo test blob to Prod and verify its contents
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash

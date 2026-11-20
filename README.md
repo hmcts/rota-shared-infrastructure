@@ -32,16 +32,16 @@ created.
 
 ## Distributing anonymised database dumps
 
-The distribution pipeline is temporarily configured to test copying a blob from Demo to AAT.
+The distribution pipeline is temporarily configured to test copying a blob from Demo to Prod.
 Run `azure-pipelines-distribute-anonymised-dump.yml` manually with `blobName` set to an existing
 test blob in `rotasademo/anonymised-db-dumps`. The default is the retained test file
 `permissions-test-20261022T154543Z-blob-permissions.UNF5qG.txt`.
 
-`scripts/test-blob-copy.sh` calls the existing distribution script with AAT as its only
-destination, then downloads the Demo source and the AAT copy and compares their contents.
+`scripts/test-blob-copy.sh` calls the existing distribution script with Prod (`rotasaprod`) as its only
+destination, then downloads the Demo source and the Prod copy and compares their contents.
 Both blobs stay in storage for inspection; their URLs are printed in the pipeline logs.
 If the destination blob already exists, the run fails before copying. For another run,
-select a different existing test blob in Demo whose name is absent from AAT.
+select a different existing test blob in Demo whose name is absent from Prod.
 
 The test uses the same `hmcts-cftptl-agent-pool` agent pool and `DTS-CFTPTL-INTSVC` Azure
 service connection as distribution. AzCopy uses the Azure CLI login via
