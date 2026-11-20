@@ -22,6 +22,32 @@ resource "azurerm_key_vault_secret" "storage_account_primary_access_key" {
   tags = local.merged_common_tags
 }
 
+resource "random_password" "anonymised_db_dump_encryption" {
+  count = var.env == "prod" ? 1 : 0
+
+  length  = 64
+  special = false
+
+  # Retain the key needed to decrypt existing backups.
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "azurerm_key_vault_secret" "anonymised_db_dump_encryption_password" {
+  count = var.env == "prod" ? 1 : 0
+
+  name         = "anonymised-db-dump-encryption-password"
+  value        = random_password.anonymised_db_dump_encryption[0].result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "azurerm_key_vault_secret" "postgresql_admin_username" {
   name         = "postgresql-admin-username"
   value        = module.postgresql_dapdb.username
