@@ -2,11 +2,18 @@
 set -euo pipefail
 
 container=anonymised-db-dumps
-source_account=rotasademo # change to prod once created
-destination_account=rotasaat
+source_account=rotasaprod
 
 if [[ ! ${BLOB_NAME:-} =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
-  echo 'BLOB_NAME must be a single filename containing only letters, digits, dots, underscores or hyphens.' >&2
+  echo 'BLOB_NAME must start with a letter or digit and contain only letters, digits, dots, underscores or hyphens.' >&2
+  exit 1
+fi
+
+BLOB_NAME="${BLOB_NAME%.backup.enc}.backup.enc"
+
+read -r -a destinations <<< "${DESTINATION_ENVIRONMENTS:-}"
+if (( ${#destinations[@]} == 0 )); then
+  echo 'No destination environments are configured.' >&2
   exit 1
 fi
 
@@ -21,15 +28,19 @@ blob_exists() {
     --output tsv
 }
 
-exists=$(blob_exists "$destination_account")
-if [[ $exists == true ]]; then
-  echo "Destination blob ${destination_account}/${container}/${BLOB_NAME} already exists." >&2
-  exit 1
-fi
-if [[ $exists != false ]]; then
-  echo "Could not confirm that ${destination_account}/${container}/${BLOB_NAME} is absent." >&2
-  exit 1
-fi
+  # Check every selected destination before copying to avoid known conflicts mid-run.
+for environment in "${destinations[@]}"; do
+  destination_account="rotasa${environment}"
+  exists=$(blob_exists "$destination_account")
+  if [[ $exists == true ]]; then
+    echo "Destination blob ${destination_account}/${container}/${BLOB_NAME} already exists." >&2
+    exit 1
+  fi
+  if [[ $exists != false ]]; then
+    echo "Could not confirm that ${destination_account}/${container}/${BLOB_NAME} is absent." >&2
+    exit 1
+  fi
+done
 
 if ! command -v azcopy >/dev/null 2>&1; then
   azcopy_dir=$(mktemp -d)
@@ -52,11 +63,14 @@ AZCOPY_TENANT_ID=$(az account show --query tenantId --output tsv)
 export AZCOPY_TENANT_ID
 
 source_url="https://${source_account}.blob.core.windows.net/${container}/${BLOB_NAME}"
-destination_url="https://${destination_account}.blob.core.windows.net/${container}/${BLOB_NAME}"
-"$azcopy" copy "$source_url" "$destination_url" --from-to=BlobBlob --overwrite=false
+for environment in "${destinations[@]}"; do
+  destination_account="rotasa${environment}"
+  destination_url="https://${destination_account}.blob.core.windows.net/${container}/${BLOB_NAME}"
+  "$azcopy" copy "$source_url" "$destination_url" --from-to=BlobBlob --overwrite=false
 
-copied=$(blob_exists "$destination_account")
-if [[ $copied != true ]]; then
-  echo "Copy did not create ${destination_account}/${container}/${BLOB_NAME}." >&2
-  exit 1
-fi
+  copied=$(blob_exists "$destination_account")
+  if [[ $copied != true ]]; then
+    echo "Copy did not create ${destination_account}/${container}/${BLOB_NAME}." >&2
+    exit 1
+  fi
+done

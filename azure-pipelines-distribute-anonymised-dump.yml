@@ -3,7 +3,7 @@ pr: none
 
 parameters:
   - name: blobName
-    displayName: Name of the anonymised dump in the Demo container
+    displayName: Filename of the PRD dump (.backup.enc added automatically)
     type: string
     default: ''
 
@@ -12,11 +12,11 @@ pool:
 
 jobs:
   - job: distribute
-    displayName: Copy Demo anonymised dump to AAT
+    displayName: Copy anonymised dump from PRD to AAT
     timeoutInMinutes: 150
     steps:
       - task: AzureCLI@2
-        displayName: Copy dump to AAT
+        displayName: Copy the selected PRD dump to AAT
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash
@@ -24,3 +24,4 @@ jobs:
           scriptPath: $(Build.SourcesDirectory)/scripts/distribute-anonymised-dump.sh
         env:
           BLOB_NAME: ${{ parameters.blobName }}
+          DESTINATION_ENVIRONMENTS: aat

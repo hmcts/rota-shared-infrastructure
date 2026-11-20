@@ -119,43 +119,35 @@ agent. AES-CTR does not authenticate the backup, and this pipeline does not perf
   sufficient temporary disk space, and network access to the private database and Azure services.
 - Confirm package compatibility before running; a successful run uploads the encrypted backup.
   Passwords must match the selected restore point.
-- Before distributing production dumps, change `source_account` in
-  `scripts/distribute-anonymised-dump.sh` from `rotasademo` to `rotasaprod`.
 
 ## Distributing anonymised database dumps
 
-The distribution pipeline is temporarily configured to test Demo blob permissions. Run
-`azure-pipelines-distribute-anonymised-dump.yml` manually without parameters. It runs
-`scripts/test-blob-permissions.sh`, which creates a small, uniquely named file on the agent,
-uploads it to `rotasademo/anonymised-db-dumps`, downloads it and compares the contents. The
-test blob stays in storage for inspection; its URL is printed in the pipeline logs.
-
-The test uses the same `hmcts-cftptl-agent-pool` agent pool and `DTS-CFTPTL-INTSVC` Azure
-service connection as distribution. Both transfers use Azure CLI with `--auth-mode login`
-to test that connection's Microsoft Entra identity. Distribution's AzCopy transfers use
-the same Azure CLI login via `AZCOPY_AUTO_LOGIN_TYPE=AZCLI`.
-
-### Original distribution workflow
-
-The instructions below apply after restoring the pipeline to run
-`scripts/distribute-anonymised-dump.sh` with the original parameters.
-
 Register `azure-pipelines-distribute-anonymised-dump.yml` as a pipeline in the PlatformOperations
-Azure DevOps project. Run it manually with the Demo `anonymised-db-dumps` blob filename in
-`blobName`. The source is `rotasademo` for testing until production exists, and the only destination
-is `rotasaat`. The source blob stays in place. Filenames must start with a letter or digit and may
-contain letters, digits, dots, underscores and hyphens.
+Azure DevOps project. Run it manually from the desired branch and enter the existing PRD
+`anonymised-db-dumps` blob filename in `blobName`, with or without the `.backup.enc` suffix.
+The script appends `.backup.enc` if needed: entering `rota-20261029` selects the existing blob
+`rota-20261029.backup.enc`. The filename is required and must start with a letter or digit;
+it may contain letters, digits, dots, underscores and hyphens.
+
+The pipeline runs `scripts/distribute-anonymised-dump.sh` to copy that one blob from
+`rotasaprod/anonymised-db-dumps` to `rotasaaat/anonymised-db-dumps`. AAT is the only destination
+configured in this pipeline. The source blob stays in PRD.
 
 Before copying, the script checks that the named blob is absent from AAT. An existing blob or a
-failed destination check stops the run. AzCopy handles a missing source or a transfer failure; its
-nonzero exit status stops the script. After copying, the script checks that the destination blob
-exists. Existing blobs are never overwritten.
+failed destination check stops the run before copying. AzCopy handles a missing source or a
+transfer failure; its nonzero exit status stops the script. After copying, the script checks that
+the destination blob exists. Existing blobs are never overwritten.
+
+AzCopy transfers the blob directly between storage accounts, so the dump is not downloaded to
+the agent. The job has a 150-minute timeout.
 
 The pipeline uses the `hmcts-cftptl-agent-pool` Linux agent pool and the existing
-`DTS-CFTPTL-INTSVC` Azure service connection. Apply the Terraform for Demo and AAT to permit the
-CFT PTL AKS agent subnets through their storage firewalls. The connection's service principal also
-needs read access to the Demo container and write access to the AAT container; `storage.tf` now
-provides container-scoped contributor access when each environment's Terraform is applied.
+`DTS-CFTPTL-INTSVC` Azure service connection. Apply the Terraform for production and
+AAT first: it permits the CFT PTL AKS agent subnets through each storage firewall and grants
+that connection's service principal container-scoped Storage Blob Data Contributor access in
+both environments, supporting production uploads and distribution to AAT. AzCopy reuses the
+Azure CLI login via `AZCOPY_AUTO_LOGIN_TYPE=AZCLI`;
+the blob existence checks use `--auth-mode login`.
 
 ### Differences from the legacy CPP-managed PaaS deployment
 
