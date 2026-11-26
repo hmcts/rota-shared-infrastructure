@@ -11,9 +11,15 @@ pg_restore --list --schema=public --strict-names "${DB_BACKUP}" > /dev/null
 
 # Drop and recreate public schema in database
 psql --no-psqlrc --set=ON_ERROR_STOP=on --username="${DB_ADMIN_USER}" --dbname="${DB_NAME}" <<SQL
--- Check the owner role exists and admin can assume it
-SET ROLE "${DB_OWNER_USER}";
-RESET ROLE;
+-- Create owner user if it does not exist
+SELECT format('CREATE ROLE %I LOGIN', '${DB_OWNER_USER}')
+WHERE NOT EXISTS (
+  SELECT FROM pg_catalog.pg_roles WHERE rolname = '${DB_OWNER_USER}'
+)
+\gexec
+
+-- Grant owner role to admin user
+GRANT "${DB_OWNER_USER}" TO "${DB_ADMIN_USER}";
 
 -- Disconnect all connections except this one
 SELECT pg_terminate_backend(pid)
