@@ -1,63 +1,7 @@
 locals {
-  portal_owner_username      = "portal_owner"
-  portal_user_username       = "portal_user"
-  optimiser_owner_username   = "optimiser_owner"
-  optimiser_user_username    = "optimiser_user"
   is_postgresql_prod         = length(regexall(".*(prod).*", var.env)) > 0
   db_access_reader_role_name = local.is_postgresql_prod ? "DTS JIT Access ${var.product} DB Reader SC" : "DTS CFT DB Access Reader"
   db_access_writer_role_name = local.is_postgresql_prod ? "DTS JIT Access ${var.product} DB Writer SC" : "DTS CFT DB Access Writer"
-}
-
-resource "terraform_data" "trigger_portal_owner_password_reset" {
-  input = "any value here"
-}
-
-resource "terraform_data" "trigger_portal_user_password_reset" {
-  input = "any value here"
-}
-
-resource "terraform_data" "trigger_optimiser_owner_password_reset" {
-  input = "any value here"
-}
-
-resource "terraform_data" "trigger_optimiser_user_password_reset" {
-  input = "any value here"
-}
-
-resource "random_password" "portal_owner" {
-  length           = 20
-  override_special = "()-_"
-
-  lifecycle {
-    replace_triggered_by = [terraform_data.trigger_portal_owner_password_reset]
-  }
-}
-
-resource "random_password" "portal_user" {
-  length           = 20
-  override_special = "()-_"
-
-  lifecycle {
-    replace_triggered_by = [terraform_data.trigger_portal_user_password_reset]
-  }
-}
-
-resource "random_password" "optimiser_owner" {
-  length           = 20
-  override_special = "()-_"
-
-  lifecycle {
-    replace_triggered_by = [terraform_data.trigger_optimiser_owner_password_reset]
-  }
-}
-
-resource "random_password" "optimiser_user" {
-  length           = 20
-  override_special = "()-_"
-
-  lifecycle {
-    replace_triggered_by = [terraform_data.trigger_optimiser_user_password_reset]
-  }
 }
 
 resource "terraform_data" "setup_portal_database" {

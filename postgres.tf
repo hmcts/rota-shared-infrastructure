@@ -1,4 +1,9 @@
 locals {
+  portal_owner_username    = "portal_owner"
+  portal_user_username     = "portal_user"
+  optimiser_owner_username = "optimiser_owner"
+  optimiser_user_username  = "optimiser_user"
+
   portal_database_name          = "portaldb"
   optimiser_database_name       = "optimiserdb"
   enable_read_only_group_access = true
@@ -53,6 +58,58 @@ locals {
     },
     local.pgsql_query_diagnostics_configuration
   )
+}
+
+resource "terraform_data" "trigger_portal_owner_password_reset" {
+  input = "any value here"
+}
+
+resource "terraform_data" "trigger_portal_user_password_reset" {
+  input = "any value here"
+}
+
+resource "terraform_data" "trigger_optimiser_owner_password_reset" {
+  input = "any value here"
+}
+
+resource "terraform_data" "trigger_optimiser_user_password_reset" {
+  input = "any value here"
+}
+
+resource "random_password" "portal_owner" {
+  length           = 20
+  override_special = "()-_"
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.trigger_portal_owner_password_reset]
+  }
+}
+
+resource "random_password" "portal_user" {
+  length           = 20
+  override_special = "()-_"
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.trigger_portal_user_password_reset]
+  }
+}
+
+resource "random_password" "optimiser_owner" {
+  length           = 20
+  override_special = "()-_"
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.trigger_optimiser_owner_password_reset]
+  }
+}
+
+resource "random_password" "optimiser_user" {
+  length           = 20
+  override_special = "()-_"
+
+  lifecycle {
+    replace_triggered_by = [terraform_data.trigger_optimiser_user_password_reset]
+  }
 }
 
 module "postgresql_dapdb" {
