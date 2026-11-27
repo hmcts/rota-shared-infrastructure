@@ -12,6 +12,7 @@ artifactory_url=https://artifactory.platform.hmcts.net/artifactory
 source_server=rota-psql-dapdb-prod
 resource_group=rota-shared-infra-prod
 key_vault=rota-shared-prod
+encryption_key_vault=rota-shared-aat
 storage_account=rotasaprod
 container=anonymised-db-dumps
 checks_report=${ANONYMISATION_CHECKS_FILE:-/tmp/rota_anonymised_database_checks.csv}
@@ -158,15 +159,18 @@ prepare_workspace() {
 # Database credentials
 # -----------------------------------------------------------------------------
 read_secret() {
+  local secret_name=$1
+  local secret_vault=${2:-$key_vault}
+
   az keyvault secret show \
-    --vault-name "$key_vault" \
-    --name "$1" \
+    --vault-name "$secret_vault" \
+    --name "$secret_name" \
     --query value \
     --output tsv
 }
 
 load_credentials() {
-  export PGSSLMODE=require PGCONNECT_TIMEOUT=10 PGPORT=5432 PGDATABASE=mojdb
+  export PGSSLMODE=require PGCONNECT_TIMEOUT=10 PGPORT=5432 PGDATABASE=portaldb
   az account set --subscription "$production_subscription"
 
   admin_user=$(read_secret dapdb-postgresql-admin-username)
@@ -176,7 +180,7 @@ load_credentials() {
     fail 'Database credentials must not be empty.'
   fi
 
-  encryption_password=$(read_secret anonymised-db-dump-encryption-password)
+  encryption_password=$(read_secret anonymised-db-dump-encryption-password "$encryption_key_vault")
   if [[ -z $encryption_password ]]; then
     fail 'The backup encryption password must not be empty.'
   fi
@@ -261,14 +265,14 @@ wait_for_database() {
       -w \
       --host="$temporary_host" \
       --username="$admin_user" \
-      --dbname=mojdb \
+      --dbname=portaldb \
       --set=ON_ERROR_STOP=1 \
       --command='SELECT 1' >/dev/null 2>/dev/null; then
       return 0
     fi
     sleep 10
   done
-  fail 'Temporary mojdb did not become accessible within the connection retry window.'
+  fail 'Temporary portaldb did not become accessible within the connection retry window.'
 }
 
 # -----------------------------------------------------------------------------
@@ -310,7 +314,7 @@ validate_anonymisation_report() {
 # Dump creation and encryption
 # -----------------------------------------------------------------------------
 create_encrypted_dump() {
-  blob_name="mojdb_anonymised_$(date -u +%Y-%m-%d_%H-%M-%S)_${RUN_ID}.backup.enc"
+  blob_name="portaldb_anonymised_$(date -u +%Y-%m-%d_%H-%M-%S)_${RUN_ID}.backup.enc"
   encrypted_dump_file="$work_dir/work/$blob_name"
 
   # pipefail stops the run if either pg_dump or OpenSSL fails. Plaintext goes
@@ -319,7 +323,7 @@ create_encrypted_dump() {
     -w \
     --host="$temporary_host" \
     --username="$admin_user" \
-    --dbname=mojdb \
+    --dbname=portaldb \
     --schema=public \
     -Fc 2>/dev/null |
     ENCPASSWORD="$encryption_password" openssl enc \
@@ -382,4 +386,6 @@ main() {
   upload_dump
 }
 
-main "$@"
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+  main "$@"
+fi

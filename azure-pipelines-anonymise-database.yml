@@ -30,7 +30,7 @@ jobs:
     cancelTimeoutInMinutes: 30
     steps:
       - task: AzureCLI@2
-        displayName: Restore, anonymise and encrypt production mojdb
+        displayName: Restore, anonymise and encrypt production portaldb
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash

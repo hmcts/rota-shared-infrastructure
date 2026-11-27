@@ -22,8 +22,10 @@ resource "azurerm_key_vault_secret" "storage_account_primary_access_key" {
   tags = local.merged_common_tags
 }
 
-resource "random_password" "anonymised_db_dump_encryption" {
-  count = var.env == "prod" ? 1 : 0
+# AAT owns new dump encryption credentials. The former production resource
+# addresses are deliberately removed so a reviewed production apply deletes them.
+resource "random_password" "anonymised_db_dump_encryption_aat" {
+  count = var.env == "aat" ? 1 : 0
 
   length  = 64
   special = false
@@ -34,11 +36,11 @@ resource "random_password" "anonymised_db_dump_encryption" {
   }
 }
 
-resource "azurerm_key_vault_secret" "anonymised_db_dump_encryption_password" {
-  count = var.env == "prod" ? 1 : 0
+resource "azurerm_key_vault_secret" "anonymised_db_dump_encryption_password_aat" {
+  count = var.env == "aat" ? 1 : 0
 
   name         = "anonymised-db-dump-encryption-password"
-  value        = random_password.anonymised_db_dump_encryption[0].result
+  value        = random_password.anonymised_db_dump_encryption_aat[0].result
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
@@ -118,4 +120,84 @@ resource "azurerm_key_vault_secret" "dopdb_postgresql_fqdn" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
+}
+
+resource "azurerm_key_vault_secret" "portal_owner_username" {
+  name         = "portal-owner-username"
+  value        = local.portal_owner_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "portal_owner_password" {
+  name         = "portal-owner-password"
+  value        = random_password.portal_owner.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "portal_user_username" {
+  name         = "portal-user-username"
+  value        = local.portal_user_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "portal_user_password" {
+  name         = "portal-user-password"
+  value        = random_password.portal_user.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_portal_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_owner_username" {
+  name         = "optimiser-owner-username"
+  value        = local.optimiser_owner_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_owner_password" {
+  name         = "optimiser-owner-password"
+  value        = random_password.optimiser_owner.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_user_username" {
+  name         = "optimiser-user-username"
+  value        = local.optimiser_user_username
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
+}
+
+resource "azurerm_key_vault_secret" "optimiser_user_password" {
+  name         = "optimiser-user-password"
+  value        = random_password.optimiser_user.result
+  key_vault_id = module.key_vault.key_vault_id
+
+  tags = local.merged_common_tags
+
+  depends_on = [terraform_data.setup_optimiser_database]
 }

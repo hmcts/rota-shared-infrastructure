@@ -51,15 +51,12 @@ validate_inputs() {
     fi
   done
 
-  for required_command in az kubectl kubelogin python3 psql pg_restore; do
+  for required_command in az kubectl kubelogin python3 psql pg_restore vacuumdb; do
     if ! command -v "$required_command" >/dev/null; then
       fail "Required command is missing: ${required_command}"
     fi
   done
 
-  if [[ $(pg_restore --version) != 'pg_restore (PostgreSQL) 15.'* ]]; then
-    fail 'PostgreSQL 15 pg_restore is required. Set POSTGRESQL_HOME to its installation directory.'
-  fi
   key_vault="rota-shared-${TARGET_ENVIRONMENT}"
 }
 
@@ -83,20 +80,23 @@ load_database_credentials() {
   optimiser_admin_user=$(read_secret dopdb-postgresql-admin-username)
   optimiser_admin_password=$(read_secret dopdb-postgresql-admin-password)
 
-  if [[ $portal_database_host != "rota-psql-dapdb-${TARGET_ENVIRONMENT}.postgres.database.azure.com" ]]; then
-    fail 'Unexpected DAPDB hostname.'
-  fi
-  if [[ $optimiser_database_host != "rota-psql-dopdb-${TARGET_ENVIRONMENT}.postgres.database.azure.com" ]]; then
-    fail 'Unexpected DOPDB hostname.'
-  fi
-  if [[ -z $portal_admin_user || -z $portal_admin_password || -z $optimiser_admin_user || -z $optimiser_admin_password ]]; then
-    fail 'Empty database credentials.'
-  fi
+  portal_owner_user=$(read_secret portal-owner-username)
+  portal_owner_password=$(read_secret portal-owner-password)
+  portal_application_user=$(read_secret portal-user-username)
+  portal_application_password=$(read_secret portal-user-password)
+  optimiser_owner_user=$(read_secret optimiser-owner-username)
+  optimiser_owner_password=$(read_secret optimiser-owner-password)
+  optimiser_application_user=$(read_secret optimiser-user-username)
+  optimiser_application_password=$(read_secret optimiser-user-password)
 }
 
 load_credentials() {
   load_database_credentials
   export PGSSLMODE=require PGCONNECT_TIMEOUT=10 PGPORT=5432
+  # Match the non-production group access configured in postgres.tf.
+  export ENABLE_DB_READER_ACCESS=true ENABLE_DB_WRITER_ACCESS=true
+  export DB_ACCESS_READER_ROLE='DTS CFT DB Access Reader'
+  export DB_ACCESS_WRITER_ROLE='DTS CFT DB Access Writer'
 }
 
 # -----------------------------------------------------------------------------
@@ -117,48 +117,9 @@ download_dump() {
     --output none
 }
 
-prepare_restore_list() {
-  # Read a regular file: --list can stop after the table of contents without
-  # breaking an upstream decryption process or leaving unread pipe data.
-  pg_restore --list "$work_dir/dump.backup" > "$work_dir/archive.list"
-  python3 - "$work_dir/archive.list" "$work_dir/restore.list" <<'PY'
-from pathlib import Path
-import re
-import sys
-
-archive_list_path = Path(sys.argv[1])
-restore_list_path = Path(sys.argv[2])
-archive_contents = archive_list_path.read_text()
-
-if not re.search(r'^\d+; \d+ \d+ TABLE public ', archive_contents, re.M):
-    raise SystemExit('The archive contains no public tables.')
-
-# The target recreates public and its extensions with its own owners and grants.
-excluded_entries = r'^\d+; \d+ \d+ (SCHEMA - public |EXTENSION |COMMENT - EXTENSION )'
-restore_entries = []
-for entry in archive_contents.splitlines():
-    if not re.match(excluded_entries, entry):
-        restore_entries.append(entry)
-
-restore_list_path.write_text('\n'.join(restore_entries) + '\n')
-PY
-}
-
-validate_dump_archive() {
-  # Read the whole archive before downtime, not just its table of contents.
-  pg_restore \
-    --no-owner \
-    --no-privileges \
-    --schema=public \
-    --use-list="$work_dir/restore.list" \
-    --file=/dev/null \
-    "$work_dir/dump.backup"
-}
-
 prepare_dump() {
   download_dump
-  prepare_restore_list
-  validate_dump_archive
+  pg_restore --list --schema=public --strict-names "$work_dir/dump.backup" > /dev/null
 }
 
 # -----------------------------------------------------------------------------
@@ -204,57 +165,23 @@ connect_clusters() {
 }
 
 # -----------------------------------------------------------------------------
-# Target database selection and preflight checks
+# Target database settings for the shared restore and setup scripts
 # -----------------------------------------------------------------------------
 use_portal_database() {
-  export PGHOST="$portal_database_host"
-  export PGUSER="$portal_admin_user" PGPASSWORD="$portal_admin_password" PGDATABASE=mojdb
+  export PGHOST="$portal_database_host" DB_NAME=portaldb
+  export DB_ADMIN_USER="$portal_admin_user" DB_ADMIN_PASSWORD="$portal_admin_password"
+  export DB_OWNER_USER="$portal_owner_user" DB_OWNER_PASSWORD="$portal_owner_password"
+  export DB_APPLICATION_USER="$portal_application_user" DB_APPLICATION_PASSWORD="$portal_application_password"
+  export DB_RESTORE_MODE=restore DB_BACKUP="$work_dir/dump.backup"
 }
 
 use_optimiser_database() {
-  export PGHOST="$optimiser_database_host"
-  export PGUSER="$optimiser_admin_user" PGPASSWORD="$optimiser_admin_password" PGDATABASE=optimiserdb
-}
-
-check_database() {
-  local owner_user=$1 application_user=$2
-
-  psql \
-    -X \
-    -w \
-    --set=ON_ERROR_STOP=1 \
-    --set="restore_owner=$owner_user" \
-    --set="application_user=$application_user" \
-    --quiet <<'SQL'
--- Fail before downtime if the database-users branch has not been applied.
-SET ROLE :"restore_owner";
-RESET ROLE;
-SELECT :'application_user'::regrole;
-
--- This pipeline is written for the PostgreSQL 15 servers in postgres.tf.
-DO $$
-BEGIN
-  IF current_setting('server_version_num')::int / 10000 <> 15 THEN
-    RAISE EXCEPTION 'Expected PostgreSQL 15';
-  END IF;
-  IF NOT EXISTS (SELECT FROM pg_namespace WHERE nspname = 'public') THEN
-    RAISE EXCEPTION 'The target public schema is missing';
-  END IF;
-  IF EXISTS (
-    SELECT FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace
-    WHERE n.nspname = 'public' AND e.extname NOT IN ('pg_stat_statements', 'pg_buffercache')
-  ) THEN
-    RAISE EXCEPTION 'Unexpected extension in public; review it before restoring';
-  END IF;
-END $$;
-SQL
-}
-
-check_databases() {
-  use_portal_database
-  check_database portal_owner portal_user
-  use_optimiser_database
-  check_database optimiser_owner optimiser_user
+  export PGHOST="$optimiser_database_host" DB_NAME=optimiserdb
+  export DB_ADMIN_USER="$optimiser_admin_user" DB_ADMIN_PASSWORD="$optimiser_admin_password"
+  export DB_OWNER_USER="$optimiser_owner_user" DB_OWNER_PASSWORD="$optimiser_owner_password"
+  export DB_APPLICATION_USER="$optimiser_application_user" DB_APPLICATION_PASSWORD="$optimiser_application_password"
+  export DB_RESTORE_MODE=reset
+  unset DB_BACKUP
 }
 
 # -----------------------------------------------------------------------------
@@ -266,43 +193,18 @@ stop_workloads() {
     --contexts "cft-${TARGET_ENVIRONMENT}-00-aks" "cft-${TARGET_ENVIRONMENT}-01-aks"
 }
 
-write_schema_restore_sql() {
-  local restore_blob=$1
-
-  # A failed producer never emits COMMIT. psql then rolls the schema replacement
-  # back on EOF; pipefail also propagates pg_restore failures.
-  cat "$scripts_dir/database-restore/rebuild-public-schema.sql" || return $?
-  if [[ $restore_blob == true ]]; then
-    pg_restore \
-      --no-owner \
-      --no-privileges \
-      --schema=public \
-      --use-list="$work_dir/restore.list" \
-      --file=- \
-      "$work_dir/dump.backup" || return $?
-  fi
-  printf '\nCOMMIT;\nANALYZE;\n'
-}
-
-rebuild_schema() {
-  local owner_user=$1 application_user=$2 restore_blob=$3
-
-  write_schema_restore_sql "$restore_blob" | psql \
-    -X \
-    -w \
-    --quiet \
-    --set=ON_ERROR_STOP=1 \
-    --set="restore_owner=$owner_user" \
-    --set="application_user=$application_user"
+restore_database() {
+  bash "$scripts_dir/database-restore/restore-database.sh"
+  bash "$scripts_dir/database-setup/setup-database.sh"
 }
 
 restore_databases() {
   touch "$state_dir/database-started"
 
   use_portal_database
-  rebuild_schema portal_owner portal_user true
+  restore_database
   use_optimiser_database
-  rebuild_schema optimiser_owner optimiser_user false
+  restore_database
 
   touch "$state_dir/database-complete"
 }
@@ -334,7 +236,7 @@ cleanup() {
   if [[ ! -d $work_dir ]]; then
     return 0
   fi
-  rm -f -- "$work_dir/dump.backup" "$work_dir/restore.list" "$work_dir/archive.list"
+  rm -f -- "$work_dir/dump.backup"
 
   if [[ -f $state_dir/database-started && ! -f $state_dir/database-complete ]]; then
     echo "Database restore failed. Workloads remain stopped. Recover using ${state_dir}/workloads.json before resuming." >&2
@@ -384,7 +286,6 @@ main() {
   prepare_workspace
   load_credentials
   prepare_dump
-  check_databases
   connect_clusters
   stop_workloads
   restore_databases

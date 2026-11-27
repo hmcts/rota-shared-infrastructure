@@ -42,7 +42,7 @@ jobs:
     cancelTimeoutInMinutes: 30
     steps:
       - task: AzureCLI@2
-        displayName: Validate dump, stop Rota, restore mojdb and rebuild optimiserdb
+        displayName: Validate dump, stop Rota, restore portaldb and rebuild optimiserdb
         inputs:
           azureSubscription: DTS-CFTPTL-INTSVC
           scriptType: bash

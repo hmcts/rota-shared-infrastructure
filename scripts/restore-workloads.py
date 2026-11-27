@@ -193,7 +193,18 @@ def autoscaling_paused(context, resource):
 
 def jobs_finished(context):
     jobs = get(context, NAMESPACE, "jobs")["items"]
-    return not any(job.get("status", {}).get("active", 0) for job in jobs)
+    for job in jobs:
+        conditions = {
+            condition["type"] for condition in job.get("status", {}).get("conditions", [])
+            if condition["status"] == "True"
+        }
+        if conditions.intersection(("Complete", "Failed")):
+            continue
+        if job.get("spec", {}).get("suspend") and "Suspended" in conditions:
+            continue
+        # A new or retrying Job can have no active pods and still create one later.
+        return False
+    return True
 
 
 def wait_for_controllers(context, resources, timeout):
@@ -277,7 +288,10 @@ def stop(path, contexts, run_id, timeout):
         raise RuntimeError("Workload state already exists; recover it before another restore")
     state = {
         "run_id": run_id,
-        "clusters": [{"context": context, "shutdown_started": False} for context in contexts],
+        "clusters": [
+            {"context": context, "shutdown_started": False, "workloads_restored": False}
+            for context in contexts
+        ],
     }
     # Lock both clusters before reading settings: another run may currently have
     # replicas at zero, and those must never become this run's recovery settings.
@@ -317,6 +331,10 @@ def holds_restore_lock(cluster, run_id):
     )
     if lock_contents and json.loads(lock_contents)["data"]["run-id"] == run_id:
         return True
+    if not lock_contents and cluster.get("locked") and cluster.get("workloads_restored"):
+        # A previous attempt may have deleted the lock without receiving the reply
+        # or saving resumed. Its durable checkpoint explains the missing lock.
+        return False
     if not cluster.get("locked"):
         # A cluster where lock acquisition failed was never modified by us.
         return False
@@ -377,15 +395,20 @@ def restore_controllers(cluster):
             patch(cluster["context"], resource, original(resource))
 
 
-def resume_cluster(cluster, run_id, timeout):
-    if not holds_restore_lock(cluster, run_id):
-        return False
+def resume_cluster(path, state, cluster, timeout):
+    if not holds_restore_lock(cluster, state["run_id"]):
+        return cluster.get("workloads_restored", False)
 
     # A failed lock acquisition or snapshot never changed workload settings.
-    # Release only this run's lock in that case, without applying any snapshot.
-    if cluster.get("shutdown_started"):
-        restore_workloads(cluster, timeout)
-        restore_controllers(cluster)
+    # A retry after restoration must only finish releasing this run's lock.
+    if not cluster.get("workloads_restored"):
+        if cluster.get("shutdown_started"):
+            restore_workloads(cluster, timeout)
+            restore_controllers(cluster)
+        cluster["workloads_restored"] = True
+        save(path, state)
+    # Publish the checkpoint before deletion, including when retrying a failed patch.
+    persist_cluster_snapshot(cluster)
     kubectl(cluster["context"], NAMESPACE, "delete", "configmap", LOCK)
     return True
 
@@ -396,10 +419,18 @@ def resume(path, timeout):
     state = json.loads(path.read_text())
     owned_clusters = []
     for cluster in state["clusters"]:
-        if not cluster.get("resumed") and holds_restore_lock(cluster, state["run_id"]):
+        if cluster.get("resumed"):
+            continue
+        if holds_restore_lock(cluster, state["run_id"]):
             owned_clusters.append(cluster)
+        elif cluster.get("workloads_restored"):
+            cluster["resumed"] = True
+            save(path, state)
 
-    modified_clusters = [cluster for cluster in owned_clusters if cluster.get("shutdown_started")]
+    modified_clusters = [
+        cluster for cluster in owned_clusters
+        if cluster.get("shutdown_started") and not cluster.get("workloads_restored")
+    ]
     for cluster in modified_clusters:
         check_resource_identities(cluster)
     if modified_clusters:
@@ -409,7 +440,7 @@ def resume(path, timeout):
     for cluster in owned_clusters:
         context = cluster["context"]
         try:
-            if resume_cluster(cluster, state["run_id"], timeout):
+            if resume_cluster(path, state, cluster, timeout):
                 cluster["resumed"] = True
                 save(path, state)
         except (RuntimeError, subprocess.CalledProcessError, KeyError) as error:
