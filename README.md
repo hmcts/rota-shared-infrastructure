@@ -37,11 +37,21 @@ These databases are not yet production ready and may be recreated during this tr
 Review the Terraform plan before applying the database-name change; no data migration is included.
 Application connection settings and the published anonymisation package must also use `portaldb`.
 
-The database setup and local scripts come from `dev/PET-8240-database-users` (`cdf5dfc`).
-`postgres-setup.tf` runs `scripts/database-setup/setup-database.sh` to configure the owner,
-application and group access, then publishes `portal-owner-*`, `portal-user-*`,
-`optimiser-owner-*` and `optimiser-user-*` credentials in the environment's Key Vault.
-The existing reader and writer group access settings remain enabled.
+The database setup and local scripts follow `dev/PET-8240-database-users` (`4e2fdc5`).
+`postgres.tf` generates the owner/application credentials and Key Vault publishes
+`portal-owner-*`, `portal-user-*`, `optimiser-owner-*` and `optimiser-user-*` secrets.
+Terraform no longer runs database-user setup; publishing these credentials does not create
+the PostgreSQL roles or apply their passwords and grants. Moving the credential resources
+from `postgres-setup.tf` to `postgres.tf` keeps their Terraform addresses unchanged.
+
+The restore pipeline creates a missing owner role, grants it to the administrator, restores
+or resets the schema, then runs `scripts/database-setup/setup-database.sh` to apply passwords
+and application/group access. The local create/restore wrappers also invoke setup.
+For an initial production deployment, or database recreation outside this restore pipeline,
+run the shared setup script from an authorised agent using the target database administrator,
+owner/application credentials from Key Vault, and the appropriate group-access settings.
+Production is excluded from the anonymised restore pipeline. Reader and writer group access
+both remain enabled in this branch.
 
 The `scripts/database-local` wrappers create, restore and drop both databases for local development.
 They default to localhost and development credentials; the Azure pipeline supplies explicit
@@ -153,8 +163,9 @@ migrated between environments.
 
 - Update and publish the package as described above, then replace the `artifactoryRepository`
   placeholder in the pipeline YAML. The agent client path and password-secret name are already set.
-- Ensure the database-users configuration providing `portal_owner` and `portal-owner-password` has
-  been applied in production, and the restored database uses that ownership model.
+- Ensure production database-user setup has been run with `portal-owner-password` from Key Vault,
+  and the selected restore point contains `portal_owner` with the expected ownership and password.
+  Terraform publishes credentials but no longer executes this setup.
 - Review and apply AAT Terraform for the encryption secret and production Terraform for container
   access. Follow the AAT creation/production removal order above. The generated encryption password
   is held in AAT Terraform state; retain it for local decryption and protect access to that state.
@@ -265,8 +276,10 @@ Archive listing and import read a regular file by filename.
 
 ### Restore prerequisites
 
-- Apply this branch's database provisioning and setup first. The databases and owner roles must
-  exist before restoration, with each administrator able to assume its owner role.
+- Apply this branch's database and credential provisioning first. The databases must already exist.
+  Restore creates a missing owner role and grants it to the administrator; subsequent setup creates
+  the application role and applies target passwords and grants. The administrator needs permission
+  to create and manage these roles as well as replace the public schema.
 - Allow the service connection to read the target's `dapdb-postgresql-*`, `dopdb-postgresql-*`,
   `portal-owner-*`, `portal-user-*`, `optimiser-owner-*` and `optimiser-user-*` Key Vault secrets,
   and download blobs from the target environment's container. Setup reapplies those stored passwords.

@@ -128,8 +128,6 @@ resource "azurerm_key_vault_secret" "portal_owner_username" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_portal_database]
 }
 
 resource "azurerm_key_vault_secret" "portal_owner_password" {
@@ -138,8 +136,6 @@ resource "azurerm_key_vault_secret" "portal_owner_password" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_portal_database]
 }
 
 resource "azurerm_key_vault_secret" "portal_user_username" {
@@ -148,8 +144,6 @@ resource "azurerm_key_vault_secret" "portal_user_username" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_portal_database]
 }
 
 resource "azurerm_key_vault_secret" "portal_user_password" {
@@ -158,8 +152,6 @@ resource "azurerm_key_vault_secret" "portal_user_password" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_portal_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_owner_username" {
@@ -168,8 +160,6 @@ resource "azurerm_key_vault_secret" "optimiser_owner_username" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_optimiser_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_owner_password" {
@@ -178,8 +168,6 @@ resource "azurerm_key_vault_secret" "optimiser_owner_password" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_optimiser_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_user_username" {
@@ -188,8 +176,6 @@ resource "azurerm_key_vault_secret" "optimiser_user_username" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_optimiser_database]
 }
 
 resource "azurerm_key_vault_secret" "optimiser_user_password" {
@@ -198,6 +184,4 @@ resource "azurerm_key_vault_secret" "optimiser_user_password" {
   key_vault_id = module.key_vault.key_vault_id
 
   tags = local.merged_common_tags
-
-  depends_on = [terraform_data.setup_optimiser_database]
 }
